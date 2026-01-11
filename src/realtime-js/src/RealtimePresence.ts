@@ -3,8 +3,18 @@
   License: https://github.com/phoenixframework/phoenix/blob/d344ec0a732ab4ee204215b31de69cf4be72e3bf/LICENSE.md
 */
 
-import { PresenceOpts, PresenceOnJoinCallback, PresenceOnLeaveCallback } from 'phoenix'
+import { CHANNEL_EVENTS } from './lib/constants'
 import RealtimeChannel from './RealtimeChannel'
+
+type PresenceOpts = {
+  events?: {
+    state: string
+    diff: string
+  }
+}
+
+type PresenceOnJoinCallback = (key: string, currentPresences: any[], newPresences: any[]) => void
+type PresenceOnLeaveCallback = (key: string, currentPresences: any[], leftPresences: any[]) => void
 
 type Presence<T extends { [key: string]: any } = {}> = {
   presence_ref: string
@@ -133,7 +143,7 @@ export default class RealtimePresence {
   }
 
   /**
-   * Used to sync the list of presences on the server with the
+   * Used to sync the server with the
    * client's state.
    *
    * An optional `onJoin` and `onLeave` callback can be provided to

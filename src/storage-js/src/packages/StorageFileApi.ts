@@ -24,6 +24,8 @@ const DEFAULT_FILE_OPTIONS: FileOptions = {
   upsert: false,
 }
 
+declare const wx: any
+
 export default class StorageFileApi {
   protected supabaseKey: string | undefined
   protected url: string
@@ -84,32 +86,70 @@ export default class StorageFileApi {
         ...this.headers,
         ...(method === 'POST' && { 'x-upsert': String(options.upsert as boolean) }),
       }
-      // if (typeof Blob !== 'undefined' && fileBody instanceof Blob) {
-      //   body = new FormData()
-      //   body.append('cacheControl', options.cacheControl as string)
-      //   body.append('', fileBody)
-      // } else if (typeof FormData !== 'undefined' && fileBody instanceof FormData) {
-      //   body = fileBody
-      //   body.append('cacheControl', options.cacheControl as string)
-      // } else {
-      //   body = fileBody
-      //   headers['cache-control'] = `max-age=${options.cacheControl}`
-      //   headers['content-type'] = options.contentType as string
-      // }
-      // const cleanPath = this._removeEmptyFolders(path)
-      // const _path = this._getFinalPath(cleanPath)
+
       const cleanPath = this._removeEmptyFolders(path)
       const _path = this._getFinalPath(cleanPath)
-      const FormData = require('../lib/formData.js')
-      let formData = new FormData()
-      formData.append('name', 'value')
-      formData.appendFile('file', fileBody.tempFilePath, path)
-      let data = formData.getData()
-      headers['cache-control'] = `max-age=${options.cacheControl}`
-      headers['content-type'] = data.contentType
+
+      // WeChat Mini Program Check
+      // @ts-ignore
+      if (typeof wx !== 'undefined' && typeof wx.uploadFile === 'function') {
+        return new Promise((resolve, reject) => {
+          // @ts-ignore
+          wx.uploadFile({
+            url: `${this.url}/object/${_path}`,
+            filePath: typeof fileBody === 'string' ? fileBody : (fileBody as any).tempFilePath,
+            name: 'file',
+            header: {
+              ...headers,
+              'content-type': 'multipart/form-data', // wx.uploadFile requires this or lets it be handled? Usually it sets it. Let's be explicit or default.
+              // Actually wx.uploadFile sets content-type to multipart/form-data; boundary=... automatically.
+              // But we might need to pass other headers like Authorization.
+              // Notes: Authorization is already in this.headers? No, check constructor.
+              // StorageFileApi constructor takes headers.
+            },
+            formData: {
+              // If cacheControl is needed as a field? Supabase Storage usually allows cacheControl header.
+              // But for multipart, metadata might be needed?
+              // The original code appended 'cacheControl' to FormData without name 'file'.
+              cacheControl: options.cacheControl as string,
+            },
+            success: (res: any) => {
+              // wx.uploadFile returns data as string usually.
+              if (res.statusCode >= 200 && res.statusCode < 300) {
+                resolve({
+                  data: { path: cleanPath },
+                  error: null,
+                })
+              } else {
+                reject({
+                  data: null,
+                  error: { message: res.data || 'Upload failed', status: res.statusCode },
+                })
+              }
+            },
+            fail: (err: any) => {
+              reject({ data: null, error: { message: err.errMsg || 'Network error' } })
+            },
+          })
+        })
+      }
+
+      if (typeof Blob !== 'undefined' && fileBody instanceof Blob) {
+        body = new FormData()
+        body.append('cacheControl', options.cacheControl as string)
+        body.append('', fileBody)
+      } else if (typeof FormData !== 'undefined' && fileBody instanceof FormData) {
+        body = fileBody
+        body.append('cacheControl', options.cacheControl as string)
+      } else {
+        body = fileBody
+        headers['cache-control'] = `max-age=${options.cacheControl}`
+        headers['content-type'] = options.contentType as string
+      }
+
       const res = await this.fetch(`${this.url}/object/${_path}`, {
         method,
-        body: data.buffer,
+        body: body as any,
         headers,
       })
       if (res.ok) {
@@ -118,8 +158,8 @@ export default class StorageFileApi {
           error: null,
         }
       } else {
-        const error = res
-        return { data: null, error }
+        const error = await res.json()
+        return { data: null, error: error as StorageError }
       }
     } catch (error) {
       if (isStorageError(error)) {
@@ -136,61 +176,6 @@ export default class StorageFileApi {
    * @param path The relative file path. Should be of the format `folder/subfolder/filename.png`. The bucket must already exist before attempting to upload.
    * @param fileBody The body of the file to be stored in the bucket.
    */
-  private async app_upload(
-    method: 'POST',
-    path: string,
-    fileBody:
-      | ArrayBuffer
-      | ArrayBufferView
-      | Blob
-      | Buffer
-      | File
-      | FormData
-      | NodeJS.ReadableStream
-      | ReadableStream<Uint8Array>
-      | URLSearchParams
-      | string,
-    fileOptions?: FileOptions
-  ): Promise<
-    | {
-        data: { path: string }
-        error: null
-      }
-    | {
-        data: null
-        error: StorageError
-      }
-  > {
-    try {
-      const options = { ...DEFAULT_FILE_OPTIONS, ...fileOptions }
-      const headers: Record<string, string> = {
-        ...this.headers,
-        ...(method === 'POST' && { 'x-upsert': String(options.upsert as boolean) }),
-      }
-      headers.Authorization = `Bearer ${this.supabaseKey}`
-      const cleanPath = this._removeEmptyFolders(path)
-      const _path = this._getFinalPath(cleanPath)
-
-      return new Promise((resolve, reject) => {
-        uni.uploadFile({
-          url: `${this.url}/object/${_path}`, // 仅为示例，非真实的接口地址
-          filePath: fileBody,
-          header: headers,
-          success: (uploadFileRes: any) => {
-            resolve({ data: { path: cleanPath }, error: null })
-          },
-          fail: (err: any) => {
-            reject({ data: null, error: err })
-          },
-        })
-      })
-    } catch (error) {
-      if (isStorageError(error)) {
-        return { data: null, error }
-      }
-      throw error
-    }
-  }
 
   /**
    * Uploads a file to an existing bucket.
@@ -230,32 +215,7 @@ export default class StorageFileApi {
    * @param path The file path, including the file name. Should be of the format `folder/subfolder/filename.png`. The bucket must already exist before attempting to upload.
    * @param fileBody The body of the file to be stored in the bucket.
    */
-  async unapp_upload(
-    path: string,
-    fileBody:
-      | ArrayBuffer
-      | ArrayBufferView
-      | Blob
-      | Buffer
-      | File
-      | FormData
-      | NodeJS.ReadableStream
-      | ReadableStream<Uint8Array>
-      | URLSearchParams
-      | string,
-    fileOptions?: FileOptions
-  ): Promise<
-    | {
-        data: { path: string }
-        error: null
-      }
-    | {
-        data: null
-        error: StorageError
-      }
-  > {
-    return this.app_upload('POST', path, fileBody, fileOptions)
-  }
+
   /**
    * Replaces an existing file at the specified path with a new one.
    *

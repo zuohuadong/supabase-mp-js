@@ -1,5 +1,5 @@
 import { expiresAt, looksLikeFetchResponse } from './helpers'
-let { URLSearchParams } = require('../../../wechaturl-parse/index')
+import { URLSearchParams } from '../../../lib/poly-url'
 import {
   AuthResponse,
   SSOResponse,

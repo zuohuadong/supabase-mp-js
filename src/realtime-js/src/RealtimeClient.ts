@@ -1,5 +1,5 @@
 // import { w3cwebsocket } from 'websocket'
-let { URLSearchParams } = require('../../wechaturl-parse/index')
+// import { URLSearchParams } from '../../wechaturl-parse' // Removed in favor of custom impl
 import {
   VSN,
   CHANNEL_EVENTS,
@@ -55,7 +55,7 @@ export default class RealtimeClient {
   encode: Function
   decode: Function
   reconnectAfterMs: Function
-  conn: WebSocket | null = null
+  conn: any = null
   sendBuffer: Function[] = []
   serializer: Serializer = new Serializer()
   stateChangeCallbacks: {
@@ -134,16 +134,16 @@ export default class RealtimeClient {
       //   console.log('收到小心')
       //   this._onConnOpen()
       // }
-      this.conn.onOpen((res) => {
+      this.conn.onOpen((res: any) => {
         this._onConnOpen()
       })
-      this.conn.onClose((event) => {
+      this.conn.onClose((event: any) => {
         this._onConnClose(event)
       })
-      this.conn.onError((error) => {
+      this.conn.onError((error: any) => {
         this._onConnError(error as unknown as ErrorEvent)
       })
-      this.conn.onMessage((event) => {
+      this.conn.onMessage((event: any) => {
         // var data = JSON.parse(onMessage.data);
         this._onConnMessage(event)
         // reMsg(onMessage.data);
@@ -162,8 +162,8 @@ export default class RealtimeClient {
       this.conn.onClose = function () {} // noop
       if (code) {
         this.conn.close({
-          success(data) {
-            code, reason ?? ''
+          success(data: any) {
+            // code, reason ?? ''
           },
         })
       } else {
@@ -399,13 +399,16 @@ export default class RealtimeClient {
     this.channels.forEach((channel: RealtimeChannel) => channel._trigger(CHANNEL_EVENTS.error))
   }
 
-  /** @internal */
+  // Basic query string serializer since we only need to append params
   private _appendParams(url: string, params: { [key: string]: string }): string {
     if (Object.keys(params).length === 0) {
       return url
     }
     const prefix = url.match(/\?/) ? '&' : '?'
-    const query = new URLSearchParams(params)
+    // Custom URLSearchParams-like logic
+    const query = Object.keys(params)
+      .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(params[k])}`)
+      .join('&')
 
     return `${url}${prefix}${query}`
   }

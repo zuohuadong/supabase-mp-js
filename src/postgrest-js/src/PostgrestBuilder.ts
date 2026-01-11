@@ -12,7 +12,7 @@ export default abstract class PostgrestBuilder<Result>
   protected body?: unknown
   protected shouldThrowOnError = false
   protected signal?: AbortSignal
-  protected fetch: Fetch
+  protected fetch!: Fetch
   protected allowEmpty: boolean
 
   constructor(builder: PostgrestBuilder<Result>) {
@@ -72,7 +72,7 @@ export default abstract class PostgrestBuilder<Result>
       headers: this.headers,
       body: JSON.stringify(this.body),
       signal: this.signal,
-    }).then(async (res) => {
+    }).then(async (res: any) => {
       let error = null
       let data = null
       let count: number | null = null

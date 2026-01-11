@@ -17,7 +17,7 @@ import { fetchWithAuth } from './lib/fetch'
 import { stripTrailingSlash, applySettingDefaults } from './lib/helpers'
 import { SupabaseAuthClient } from './lib/SupabaseAuthClient'
 import { Fetch, GenericSchema, SupabaseClientOptions, SupabaseAuthClientOptions } from './lib/types'
-let { URL } = require('./wechaturl-parse/index')
+// let { URL } = require('./wechaturl-parse/index')
 
 const DEFAULT_GLOBAL_OPTIONS = {
   headers: DEFAULT_HEADERS,
@@ -102,7 +102,9 @@ export default class SupabaseClient<
       this.functionsUrl = `${_supabaseUrl}/functions/v1`
     }
     // default storage key uses the supabase project ref as a namespace
-    const defaultStorageKey = `sb-${new URL(this.authUrl).hostname.split('.')[0]}-auth-token`
+    const defaultStorageKey = `sb-${
+      this.authUrl.match(/:\/\/(.+?)(\/|$)/)?.[1]?.split('.')[0]
+    }-auth-token`
     const DEFAULTS = {
       db: DEFAULT_DB_OPTIONS,
       realtime: DEFAULT_REALTIME_OPTIONS,

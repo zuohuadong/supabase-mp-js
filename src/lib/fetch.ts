@@ -35,6 +35,6 @@ export const fetchWithAuth = (
     if (!headers.has('Authorization')) {
       headers.set('Authorization', `Bearer ${accessToken}`)
     }
-    return fetch(input, { ...init, headers })
+    return fetch(input, { ...init, headers: headers as any })
   }
 }

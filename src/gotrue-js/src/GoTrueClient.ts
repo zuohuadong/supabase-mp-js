@@ -1,5 +1,5 @@
 import GoTrueAdminApi from './GoTrueAdminApi'
-let { URLSearchParams } = require('../../wechaturl-parse/index')
+import { URLSearchParams } from '../../lib/poly-url'
 import {
   DEFAULT_HEADERS,
   EXPIRY_MARGIN,

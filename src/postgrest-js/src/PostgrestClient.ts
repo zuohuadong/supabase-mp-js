@@ -3,7 +3,7 @@ import PostgrestFilterBuilder from './PostgrestFilterBuilder'
 import PostgrestBuilder from './PostgrestBuilder'
 import { DEFAULT_HEADERS } from './constants'
 import { Fetch, GenericSchema } from './types'
-let { URL } = require('../../wechaturl-parse/index')
+import { URL } from '../../lib/poly-url'
 
 /**
  * PostgREST client.
@@ -72,7 +72,7 @@ export default class PostgrestClient<
    */
   from(relation: string): PostgrestQueryBuilder<Schema, any> {
     const url = new URL(`${this.url}/${relation}`)
-    return new PostgrestQueryBuilder<Schema, any>(url, {
+    return new PostgrestQueryBuilder<Schema, any>(url as any, {
       headers: { ...this.headers },
       schema: this.schema,
       fetch: this.fetch,
@@ -123,7 +123,7 @@ export default class PostgrestClient<
     Function_['Returns']
   > {
     let method: 'HEAD' | 'POST'
-    const url = new URL(`${this.url}/rpc/${fn}`)
+    const url = new URL(`${this.url}/rpc/${fn}`) as any
     let body: unknown | undefined
     if (head) {
       method = 'HEAD'

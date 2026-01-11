@@ -55,7 +55,7 @@ export const looksLikeFetchResponse = (maybeResponse: unknown): maybeResponse is
 export const setItemAsync = (storage: SupportedStorage, key: string, data: any) => {
   wx.setStorageSync(key, JSON.stringify(data))
 }
-export const getItemAsync = (storage: SupportedStorage, key: string, data: any) => {
+export const getItemAsync = (storage: SupportedStorage, key: string) => {
   const value = wx.getStorageSync(key) ? JSON.parse(wx.getStorageSync(key)) : ''
   if (!value) {
     return null
