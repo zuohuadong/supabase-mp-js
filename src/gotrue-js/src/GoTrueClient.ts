@@ -1,4 +1,3 @@
-import GoTrueAdminApi from './GoTrueAdminApi'
 import { URLSearchParams } from '../../lib/poly-url'
 import {
   DEFAULT_HEADERS,
@@ -97,8 +96,7 @@ export default class GoTrueClient {
   /**
    * Namespace for the GoTrue admin methods.
    * These methods should only be used in a trusted server-side environment.
-   */
-  admin: GoTrueAdminApi
+
   /**
    * Namespace for the MFA methods.
    */
@@ -144,11 +142,6 @@ export default class GoTrueClient {
     this.autoRefreshToken = settings.autoRefreshToken
     this.persistSession = settings.persistSession
     this.storage = settings.storage || localStorageAdapter
-    this.admin = new GoTrueAdminApi({
-      url: settings.url,
-      headers: settings.headers,
-      fetch: settings.fetch,
-    })
 
     this.url = settings.url
     this.headers = settings.headers
@@ -990,7 +983,10 @@ export default class GoTrueClient {
     }
     const accessToken = data.session?.access_token
     if (accessToken) {
-      const { error } = await this.admin.signOut(accessToken)
+      const { error } = await _request(this.fetch, 'POST', `${this.url}/logout`, {
+        headers: { ...this.headers, Authorization: `Bearer ${accessToken}` },
+        noResolveJson: true,
+      })
       if (error) {
         // ignore 404s since user might not exist anymore
         // ignore 401s since an invalid or expired JWT should sign out the current session
