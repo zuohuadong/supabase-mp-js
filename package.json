@@ -1,6 +1,6 @@
 {
   "name": "supabase-self-mcp",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Supabase Client for WeChat & MCP Bridge",
   "keywords": [
     "javascript",

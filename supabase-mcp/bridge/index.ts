@@ -187,18 +187,55 @@ async function loadEnv() {
 }
 
 // === Logic ===
+// === Logic ===
 const REMOTE_HOST = process.env.MCP_REMOTE_HOST || 'root@your-ip'
 const REMOTE_PORT = parseInt(process.env.MCP_REMOTE_PORT || '8000')
-const LOCAL_PORT = parseInt(process.env.MCP_LOCAL_PORT || '18080')
-const BASE_URL = `http://localhost:${LOCAL_PORT}/mcp`
+let LOCAL_PORT = parseInt(process.env.MCP_LOCAL_PORT || '0') // 0 means auto-select
+let BASE_URL = ''
+
+function getFreePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const srv = net.createServer()
+    srv.listen(0, () => {
+      // @ts-ignore
+      const port = srv.address().port
+      srv.close((err) => {
+        if (err) reject(err)
+        else resolve(port)
+      })
+    })
+    srv.on('error', reject)
+  })
+}
 
 let activeProcess: { kill: () => void } | null = null
 
 async function ensureTunnel() {
-  if (await adapter.checkPort(LOCAL_PORT)) {
-    console.error(`[Tunnel] Port ${LOCAL_PORT} already active`)
-    return
+  // If user specified a port, check if it's available
+  if (LOCAL_PORT !== 0) {
+    if (await adapter.checkPort(LOCAL_PORT)) {
+      // Port is taken. If it was manually set, we might want to fail or warn.
+      // But for "multi-project" support, better to warn and pick a new one?
+      // Current behavior: if manual port is taken, assume it's another instance and maybe fail?
+      // The original code returned (assumed shared tunnel).
+      // But multiple projects connect to DIFFERENT remote hosts, so we can't share tunnel blindly.
+      // Strategy: If user specified port, try to use it. If taken, try to find another free one?
+      // Better: If user SPECIFIED it, they probably want THAT port. But for multi-project defaults, we want dynamic.
+      // Let's assume: if env var is NOT set, LOCAL_PORT is 0 => dynamic.
+      console.error(`[Tunnel] Port ${LOCAL_PORT} specified but busy? Checking...`)
+      if (await adapter.checkPort(LOCAL_PORT)) {
+        console.error(`[Tunnel] Port ${LOCAL_PORT} is in use. Switching to dynamic port...`)
+        LOCAL_PORT = 0
+      }
+    }
   }
+
+  if (LOCAL_PORT === 0) {
+    LOCAL_PORT = await getFreePort()
+    console.error(`[Tunnel] Selected dynamic port: ${LOCAL_PORT}`)
+  }
+
+  BASE_URL = `http://localhost:${LOCAL_PORT}/mcp`
 
   console.error(`[Tunnel] Starting SSH tunnel to ${REMOTE_HOST}...`)
 
