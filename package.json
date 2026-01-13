@@ -1,6 +1,6 @@
 {
   "name": "supabase-mp-js",
-  "version": "0.7.0",
+  "version": "0.3.0",
   "description": "wechat Javascript client for Supabase",
   "keywords": [
     "javascript",

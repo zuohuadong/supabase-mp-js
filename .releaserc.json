@@ -1,8 +1,18 @@
 {
   "branches": [
-    { "name": "master" },
-    { "name": "next", "channel": "next", "prerelease": true },
-    { "name": "rc", "channel": "rc", "prerelease": true }
+    {
+      "name": "main"
+    },
+    {
+      "name": "next",
+      "channel": "next",
+      "prerelease": true
+    },
+    {
+      "name": "rc",
+      "channel": "rc",
+      "prerelease": true
+    }
   ],
   "plugins": [
     [
