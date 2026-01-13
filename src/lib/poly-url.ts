@@ -23,6 +23,22 @@ export class URLSearchParams {
     this.params[key] = value
   }
 
+  set(key: string, value: string) {
+    this.params[key] = value
+  }
+
+  get(key: string): string | null {
+    return this.params[key] || null
+  }
+
+  has(key: string): boolean {
+    return Object.prototype.hasOwnProperty.call(this.params, key)
+  }
+
+  delete(key: string) {
+    delete this.params[key]
+  }
+
   toString() {
     return Object.keys(this.params)
       .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(this.params[k])}`)
