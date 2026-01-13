@@ -186,35 +186,6 @@ async function sendRequest(jsonBody: string): Promise<string> {
   return await response.text()
 }
 
-// === Initialize 响应 (本地快速响应，避免超时) ===
-function handleInitialize(line: string): boolean {
-  try {
-    const parsed = JSON.parse(line)
-    if (parsed.method === 'initialize') {
-      console.error('[Bridge] Intercepted initialize, responding locally')
-      const response = {
-        jsonrpc: '2.0',
-        id: parsed.id,
-        result: {
-          protocolVersion: '2024-11-05',
-          capabilities: {
-            tools: { listChanged: true },
-            resources: { subscribe: true },
-            prompts: {},
-          },
-          serverInfo: {
-            name: 'supabase-self-mcp-bridge',
-            version: '0.4.0',
-          },
-        },
-      }
-      console.log(JSON.stringify(response))
-      return true
-    }
-  } catch {}
-  return false
-}
-
 // === 清理 ===
 function cleanup(): void {
   if (sshProc) {
@@ -303,11 +274,6 @@ async function main(): Promise<void> {
       buffer = buffer.slice(newlineIndex + 1)
 
       if (!line) continue
-
-      // 优先处理 initialize (本地响应，避免超时)
-      if (handleInitialize(line)) {
-        continue
-      }
 
       // 隧道就绪则直接处理，否则入队
       if (tunnelReady) {
