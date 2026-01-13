@@ -1,7 +1,7 @@
 {
-  "name": "supabase-mp-js",
+  "name": "supabase-self-mcp",
   "version": "0.3.1",
-  "description": "wechat Javascript client for Supabase",
+  "description": "Supabase Client for WeChat & MCP Bridge",
   "keywords": [
     "javascript",
     "typescript",
@@ -14,13 +14,15 @@
   "license": "MIT",
   "author": "Supabase",
   "files": [
-    "dist",
-    "src"
+    "dist"
   ],
   "main": "dist/main/index.js",
   "module": "dist/module/index.js",
   "miniprogram": "./dist/main",
   "types": "dist/module/index.d.ts",
+  "bin": {
+    "supa-mcp": "./dist/index.mjs"
+  },
   "sideEffects": false,
   "repository": "supabase/supabase-js",
   "scripts": {
@@ -28,6 +30,7 @@
     "format": "prettier --write \"{src,test}/**/*.ts\"",
     "build": "run-s clean format build:*",
     "build:main": "tsc -p tsconfig.json",
+    "build:mcp": "bun build ./supabase-mcp/bridge/index.ts --outfile ./dist/index.mjs --target node",
     "build:module": "tsc -p tsconfig.module.json",
     "build:umd": "webpack",
     "types-generate": "dts-gen -m '@supabase/supabase-js' -s",

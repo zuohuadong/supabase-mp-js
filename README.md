@@ -11,6 +11,7 @@
 - **🛠 零配置**: 自动检测小程序环境，自动注入 Storage 适配器，开箱即用。
 - **🔒 类型安全**: 完整的 TypeScript 类型定义，包含 `wx` API 的类型声明。
 - **📱 完美兼容**: 修复了 Realtime WebSocket 在小程序下的连接问题，支持 Storage 文件上传 (`wx.uploadFile`)。
+- **🌉 MCP Bridge**: 内置 [Supabase MCP Bridge](./MCP.md)，支持 Cursor AI 直接连接私有部署数据库。
 
 ## 📦 安装
 
@@ -385,8 +386,6 @@ const supabase = createClient('URL', 'KEY', {
 2. **TypeScript**: 本库已内置 `wx` 类型定义，但建议您的项目也配置 `miniprogram-api-typings` 以获得完整的微信 API 提示。
 
 ## 📝 待支持功能
-
-- **断点续传 (TUS)**: 目前仅支持普通上传。超大文件断点续传需要适配 TUS 协议到 `wx.request`，暂未实现。
 
 ## 📄 License
 
