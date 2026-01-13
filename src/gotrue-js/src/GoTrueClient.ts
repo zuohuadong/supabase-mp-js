@@ -180,7 +180,7 @@ export default class GoTrueClient {
    * 2. Never return a session from this method as it would be cached over
    *    the whole lifetime of the client
    */
-  private async _initialize(): Promise<InitializeResult> {
+  protected async _initialize(): Promise<InitializeResult> {
     if (this.initializePromise) {
       return this.initializePromise
     }
@@ -1125,7 +1125,7 @@ export default class GoTrueClient {
    * Recovers the session from LocalStorage and refreshes
    * Note: this method is async to accommodate for AsyncStorage e.g. in React native.
    */
-  private async _recoverAndRefresh() {
+  protected async _recoverAndRefresh() {
     try {
       const currentSession = await getItemAsync(this.storage, this.storageKey)
       if (!this._isValidSession(currentSession)) {
@@ -1201,7 +1201,7 @@ export default class GoTrueClient {
     }
   }
 
-  private _notifyAllSubscribers(event: AuthChangeEvent, session: Session | null) {
+  protected _notifyAllSubscribers(event: AuthChangeEvent, session: Session | null) {
     this.stateChangeEmitters.forEach((x) => x.callback(event, session))
   }
 
@@ -1209,7 +1209,7 @@ export default class GoTrueClient {
    * set currentSession and currentUser
    * process to _startAutoRefreshToken if possible
    */
-  private async _saveSession(session: Session) {
+  protected async _saveSession(session: Session) {
     if (!this.persistSession) {
       this.inMemorySession = session
     }
@@ -1223,7 +1223,7 @@ export default class GoTrueClient {
     return setItemAsync(this.storage, this.storageKey, currentSession)
   }
 
-  private async _removeSession() {
+  protected async _removeSession() {
     if (this.persistSession) {
       await removeItemAsync(this.storage, this.storageKey)
     } else {

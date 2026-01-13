@@ -62,12 +62,11 @@ const { data, error } = await supabase.from('users').select('*').eq('id', 1)
 const { error } = await supabase.from('todos').insert({ title: 'Learn Supabase MP', done: false })
 ```
 
-### 4. 微信一键登录 (强烈推荐)
+### 4. 微信一键登录 (原生集成)
 
-> 💡 强烈建议配合 Supabase Edge Functions 使用。
->
-> **重要说明**: 官方 supabase-js 的 `signInWithOAuth` 依赖浏览器重定向，无法在微信小程序中使用。
-> 推荐方案：小程序端调用 `wx.login` 获取 code -> 调用 Edge Function -> Edge Function 请求微信 API 获取 OpenID -> 生成/获取 User -> 返回 Session -> 小程序端调用 `supabase.auth.setSession(data.session)`。
+`supabase-mp-js` 现已将微信登录提升为**一等公民**支持。
+
+相比传统手动处理，新版 `signInWithWechat` 方法会自动处理：code 获取（需手动传入）、调用 Edge Function、解析返回的 Session、自动持久化 Session 到 Storage、触发 `SIGNED_IN` 事件。
 
 #### 客户端代码
 
@@ -75,9 +74,10 @@ const { error } = await supabase.from('todos').insert({ title: 'Learn Supabase M
 // 1. 获取微信登录 Code
 wx.login({
   success: async (res) => {
-    // 2. 调用封装好的 Edge Function (需自行部署 wechat-login)
-    const { data, error } = await supabase.functions.invoke('wechat-login', {
-      body: { code: res.code },
+    // 2. 一行代码完成登录
+    // 默认会调用名为 'wechat-login' 的 Edge Function
+    const { data, error } = await supabase.auth.signInWithWechat({
+      code: res.code,
     })
 
     if (error) {
@@ -85,149 +85,193 @@ wx.login({
       return
     }
 
-    // 3. 将 Session 设置到客户端，Supabase 会自动持久化
-    if (data?.session) {
-      await supabase.auth.setSession(data.session)
-      console.log('登录成功', data.user)
-    }
+    // 登录成功！Session 已自动保存
+    console.log('登录用户:', data.user)
   },
 })
-
-// 或者使用手机号一键登录 (需前端获取 code)
-// <button open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber">...</button>
-async function onGetPhoneNumber(e) {
-  const { code } = e.detail
-
-  // 同样推荐使用 Edge Function (需自行实现 wechat-phone-login 逻辑)
-  const { data, error } = await supabase.functions.invoke('wechat-phone-login', {
-    body: { code },
-  })
-}
 ```
-
-#### 安全最佳实践
-
-> ⚠️ **严禁**将微信小程序的 `AppID` 和 `Secret` 硬编码在小程序前端代码中！
-> 必须将其配置在 Supabase 控制台的 Project Settings -> Edge Functions -> Secrets 中，通过 `Deno.env.get('WECHAT_APP_SECRET')` 读取。
 
 #### 后端配置 (Edge Function)
 
 请在您的 Supabase 项目中部署名为 `wechat-login` 的 Edge Function。
 
 <details>
-<summary>点击查看 wechat-login Deno 代码模版</summary>
+<summary>点击查看 wechat-login Deno 代码模版 (标准范式)</summary>
 
 ```typescript
 // supabase/functions/wechat-login/index.ts
-// 0. 依赖与 CORS 配置
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-Deno.serve(async (req) => {
+serve(async (req) => {
+  // 处理 CORS 预检请求
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { code, phone_code } = await req.json()
-    if (!code) throw new Error('No code provided')
+    let body
+    try {
+      body = await req.json()
+    } catch (e) {
+      throw new Error('Invalid Request Body')
+    }
+    const { code } = body
 
-    // 1. 获取环境变量
-    const appId = Deno.env.get('WECHAT_APP_ID') // 注意：需确保 Supabase Secrets 中配置一致
-    const secret = Deno.env.get('WECHAT_APP_SECRET')
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') // 必须使用 Service Role Key 以支持 Admin 操作
+    if (!code) throw new Error('Missing code in request body')
 
-    if (!appId || !secret || !supabaseUrl || !serviceKey) {
-      throw new Error('Missing Secrets')
+    // 验证环境变量
+    const WECHAT_APP_ID = Deno.env.get('WECHAT_APP_ID')
+    const WECHAT_APP_SECRET = Deno.env.get('WECHAT_APP_SECRET')
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const JWT_SECRET = Deno.env.get('JWT_SECRET') // 必须配置，通常与项目配置一致
+
+    if (
+      !WECHAT_APP_ID ||
+      !WECHAT_APP_SECRET ||
+      !SUPABASE_URL ||
+      !SUPABASE_SERVICE_ROLE_KEY ||
+      !JWT_SECRET
+    ) {
+      throw new Error('Server Config Error: Missing Env Vars')
     }
 
-    // 2. 请求微信 API 获取 OpenID
-    const wxResp = await fetch(
-      `https://api.weixin.qq.com/sns/jscode2session?appid=${appId}&secret=${secret}&js_code=${code}&grant_type=authorization_code`
-    )
-    const wxData = await wxResp.json()
-    if (wxData.errcode) throw new Error(`WeChat OpenID Error: ${wxData.errmsg}`)
+    // 1. 微信接口换取 OpenID
+    const tokenUrl = `https://api.weixin.qq.com/sns/jscode2session?appid=${WECHAT_APP_ID}&secret=${WECHAT_APP_SECRET}&js_code=${code}&grant_type=authorization_code`
+    const wechatRes = await fetch(tokenUrl)
+    const wechatData = await wechatRes.json()
 
-    const { openid } = wxData
-    // 使用 OpenID 映射虚拟邮箱
-    const email = `${openid}@wechat.program`
-    const password = `${openid}_${secret.substring(0, 6)}_pwd`
-
-    // 3. 构建 Auth 请求头 (使用 Service Key)
-    const authUrl = `${supabaseUrl}/auth/v1`
-    const headers = {
-      apikey: serviceKey,
-      Authorization: `Bearer ${serviceKey}`,
-      'Content-Type': 'application/json',
+    if (wechatData.errcode) {
+      throw new Error(`WeChat API Error: ${wechatData.errmsg}`)
     }
 
-    // 4. 尝试登录 (直接调用 Auth API)
-    let loginResp = await fetch(`${authUrl}/token?grant_type=password`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ email, password }),
+    const { openid, unionid } = wechatData
+
+    // 2. 初始化 Supabase Admin 客户端
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
     })
 
-    let sessionData = await loginResp.json()
+    // 3. 查找或创建用户
+    const email = `${openid}@wechat.com` // 虚拟邮箱策略
+    let userId = ''
 
-    // 5. 登录失败则自动注册
-    if (!loginResp.ok) {
-      const createResp = await fetch(`${authUrl}/admin/users`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          email,
-          password,
-          email_confirm: true,
-          user_metadata: { openid },
-        }),
-      })
+    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+      user_metadata: { openid, unionid },
+    })
 
-      if (!createResp.ok) {
-        const err = await createResp.json()
-        // 忽略 422 (用户已存在) 错误
-        if (createResp.status !== 422) {
-          throw new Error(err.msg || err.message || 'Create user failed')
+    if (createError) {
+      if (createError.message?.includes('already been registered')) {
+        // 用户已存在，需查询 userId
+        // 注意：生产环境建议维护一张 public.users 表来快速查询 openid -> userid 映射
+        // 这里为演示简单，使用 listUsers (性能较低，仅适合演示)
+        const {
+          data: { users },
+        } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 })
+        const foundUser = users.find((u) => u.email === email || u.user_metadata?.openid === openid)
+        if (foundUser) {
+          userId = foundUser.id
+        } else {
+          throw new Error('User exists but not found')
         }
+      } else {
+        throw createError
       }
-
-      // 注册后再次登录
-      loginResp = await fetch(`${authUrl}/token?grant_type=password`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ email, password }),
-      })
-
-      if (!loginResp.ok) throw new Error('Final login failed')
-      sessionData = await loginResp.json()
+    } else {
+      userId = newUser.user.id
     }
 
-    // 6. (可选) 处理手机号绑定逻辑
-    // 如果前端传了 phone_code，可在此处请求微信接口获取手机号并更新 user_metadata 或 profiles 表
-    // const phone = ...
+    // 4. 手动签发 JWT (自定义有效期)
+    const currentTimestamp = Math.floor(Date.now() / 1000)
+    const expiration = currentTimestamp + 60 * 60 * 24 * 7 // 7 天有效期
 
-    // 7. 返回 Session
-    return new Response(JSON.stringify({ session: sessionData, user: sessionData.user }), {
+    const jwtPayload = {
+      aud: 'authenticated',
+      exp: expiration,
+      sub: userId,
+      email: email,
+      role: 'authenticated',
+      app_metadata: { provider: 'wechat', providers: ['wechat'] },
+      user_metadata: { openid, unionid },
+    }
+
+    // 签名逻辑 (HMAC SHA-256)
+    const header = { alg: 'HS256', typ: 'JWT' }
+    const encoder = new TextEncoder()
+    const b64 = (obj: any) =>
+      btoa(JSON.stringify(obj)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+    const toSign = `${b64(header)}.${b64(jwtPayload)}`
+    const keyData = encoder.encode(JWT_SECRET)
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      keyData,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    )
+    const sigBuf = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(toSign))
+    const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sigBuf)))
+      .replace(/=/g, '')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+    const access_token = `${toSign}.${sigB64}`
+
+    // 5. 返回标准 Session 结构
+    const session = {
+      access_token,
+      token_type: 'bearer',
+      expires_in: 60 * 60 * 24 * 7,
+      refresh_token: access_token, // 简化处理，可自行实现 Refresh Token 逻辑
+      user: {
+        id: userId,
+        email,
+        app_metadata: jwtPayload.app_metadata,
+        user_metadata: jwtPayload.user_metadata,
+        aud: jwtPayload.aud,
+        created_at: new Date().toISOString(),
+        role: jwtPayload.role,
+      },
+    }
+
+    return new Response(JSON.stringify({ data: { session, user: session.user } }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
     })
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
-    })
+  } catch (error: any) {
+    return new Response(
+      JSON.stringify({
+        error: error.message,
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      }
+    )
   }
 })
 ```
 
 </details>
 
+### 5. 增强功能
+
+- **智能并发控制**: 内置请求队列，防止小程序 `wx.request` 并发数超限。
+- **Session 自动保活**: 监听 `wx.onAppShow`，在应用切回前台时自动校验并恢复 Session 状态，防止鉴权失效。
+- **环境隔离**: `signInWithWechat` 调用 `Edge Function` 方式完美隔离了 PostgreSQL 权限和微信登录逻辑。
+
 ---
 
-### 5. 文件存储 (Storage)
+### 6. 文件存储 (Storage)
 
 小程序环境会自动调用 `wx.uploadFile` 进行文件上传。
 
@@ -253,7 +297,7 @@ wx.chooseMedia({
 })
 ```
 
-### 5. 实时订阅 (Realtime)
+### 7. 实时订阅 (Realtime)
 
 ```typescript
 const channel = supabase
@@ -264,7 +308,7 @@ const channel = supabase
   .subscribe()
 ```
 
-### 6. 断点续传/大文件上传 (分片)
+### 8. 断点续传/大文件上传 (分片)
 
 该功能为独立模块，**支持 Tree-Shaking**。仅在引入时才会增加包体积。
 支持大文件分片上传，网络中断后可重试（需自行维护 offset 或依赖 TUS 恢复机制）。
@@ -297,7 +341,7 @@ wx.chooseMedia({
 })
 ```
 
-### 7. 调用 Edge Functions
+### 9. 调用 Edge Functions
 
 `supabase-mp-js` 会自动处理鉴权：
 
