@@ -45,7 +45,40 @@ MCP_REMOTE_PORT=8000                 # 远程 Supabase Studio/API 端口 (通常
 # MCP_LOCAL_PORT=18080               # (可选) 指定本地端口。不设置默认为 0 (自动动态分配)，推荐不设置以支持多开。
 ```
 
-### 在 Cursor 中使用
+### 在 Cursor 中使用 (推荐配置)
+
+为了获得最佳的多项目支持和稳定性（特别是 Windows 环境），建议**不要**使用全局 MCP 设置，而是为每个项目创建独立的配置文件。
+
+**1. 在项目根目录创建 `.cursor/mcp.json`**
+
+_(注：可以将 `.cursor/` 添加到 `.gitignore` 防止提交本地路径)_
+
+```json
+{
+  "mcpServers": {
+    "supabase": {
+      "command": "npx",
+      "args": ["-y", "-p", "supabase-self-mcp", "supa-mcp"],
+      "env": {
+        // (v0.3.3+) 显式指定项目路径，解决部分 IDE 变量替换失效问题
+        "MCP_PROJECT_PATH": "D:\\workspace\\your-project-path"
+      }
+    }
+  }
+}
+```
+
+**2. 为什么这样做？**
+
+- **稳定性**: 绕过了部分 IDE (如 Antigravity) 在 Windows 下 `${workspaceFolder}` 变量替换失败的问题。
+- **多项目**: 每个项目使用独立的 `.cursor/mcp.json`，自动获得独立的 SSH 隧道和端口。
+- **安全**: 配置仅在本地有效，配合 `.gitignore` 不会泄露路径信息。
+
+---
+
+### 全局使用 (备选)
+
+如果你的 IDE 能正确处理 `${workspaceFolder}` 变量，也可以在全局设置中使用：
 
 1. 打开 Cursor Settings -> Features -> MCP Servers
 2. 点击 **Add Check**
