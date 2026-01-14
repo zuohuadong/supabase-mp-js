@@ -1,6 +1,7 @@
 // import crossFetch from 'cross-fetch'
 
 import type { Fetch, PostgrestResponse } from './types'
+import { enhancePostgrestError, logFriendlyError } from '../../lib/error-hints'
 
 export default abstract class PostgrestBuilder<Result> implements PromiseLike<
   PostgrestResponse<Result>
@@ -130,6 +131,16 @@ export default abstract class PostgrestBuilder<Result> implements PromiseLike<
           error = null
           status = 200
           statusText = 'OK'
+        }
+
+        // 增强错误信息，添加友好提示
+        if (error) {
+          error = enhancePostgrestError(error, status) || error
+          // 在开发模式下打印友好错误（默认开启）
+          const isDev = typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production'
+          if (isDev || true) {
+            logFriendlyError(error, 'PostgREST')
+          }
         }
 
         if (error && this.shouldThrowOnError) {

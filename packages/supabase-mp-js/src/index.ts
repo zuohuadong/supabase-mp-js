@@ -49,7 +49,7 @@ export const createClient = <
   return new SupabaseClient(supabaseUrl, supabaseKey, {
     ...clientOptions,
     global: {
-      fetch: (...args) => myfetch(...args),
+      fetch: ((...args: any[]) => myfetch(args[0], args[1])) as any,
       headers: options?.global?.headers || {},
     },
   })
