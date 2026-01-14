@@ -40,8 +40,12 @@ export class SupabaseAuthClient extends GoTrueClient {
     try {
       const { code, functionName = 'wechat-login', options } = params
 
+      console.log('[signInWithWechat] Starting WeChat login, code:', code.substring(0, 10) + '...')
+
       const projectUrl = this.url.replace(/\/auth\/v1$/, '')
       const functionUrl = `${projectUrl}/functions/v1/${functionName}`
+
+      console.log('[signInWithWechat] Function URL:', functionUrl)
 
       const res = await this.fetch(functionUrl, {
         method: 'POST',
@@ -53,9 +57,18 @@ export class SupabaseAuthClient extends GoTrueClient {
         ...options,
       })
 
+      console.log('[signInWithWechat] Response status:', res.status, res.statusText)
+
       const responseData = (await res.json()) as WechatLoginResponse
 
+      console.log('[signInWithWechat] Response data:', {
+        hasUser: !!responseData.data?.user,
+        hasSession: !!responseData.data?.session,
+        hasError: !!responseData.error,
+      })
+
       if (!res.ok || responseData.error) {
+        console.error('[signInWithWechat] Login failed:', responseData.error)
         return {
           data: { user: null, session: null },
           error: responseData.error || new Error('WeChat login failed'),
@@ -65,12 +78,25 @@ export class SupabaseAuthClient extends GoTrueClient {
       const { session, user } = responseData.data
 
       if (session) {
+        console.log('[signInWithWechat] Session received, saving...', {
+          access_token: session.access_token?.substring(0, 20) + '...',
+          expires_at: session.expires_at,
+          expires_in: session.expires_in,
+        })
+
         await this._saveSession(session)
+        console.log('[signInWithWechat] Session saved successfully')
+
         this._notifyAllSubscribers('SIGNED_IN', session)
+        console.log('[signInWithWechat] Subscribers notified')
+      } else {
+        console.warn('[signInWithWechat] No session in response!')
       }
 
+      console.log('[signInWithWechat] Login completed successfully')
       return { data: { user, session }, error: null }
     } catch (error) {
+      console.error('[signInWithWechat] Exception caught:', error)
       if (isAuthError(error)) {
         return { data: { user: null, session: null }, error }
       }

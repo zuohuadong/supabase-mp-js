@@ -100,7 +100,7 @@ _(注：可以将 `.cursor/` 添加到 `.gitignore` 防止提交本地路径)_
 
 ### 全局使用 (备选)
 
-如果你的 IDE 能正确处理 `${workspaceFolder}` 变量，也可以在全局设置中使用：
+如果你的 IDE 能正确处理 `${workspaceFolder}` 变量,也可以在全局设置中使用：
 
 1. 打开 Cursor Settings -> Features -> MCP Servers
 2. 点击 **Add Check**
@@ -108,3 +108,45 @@ _(注：可以将 `.cursor/` 添加到 `.gitignore` 防止提交本地路径)_
 4. **Command**:
    - Mac/Linux: `npx -y -p supabase-self-mcp supa-mcp ${workspaceFolder}`
    - Windows: `cmd /c npx -y -p supabase-self-mcp supa-mcp ${workspaceFolder}`
+
+---
+
+### Antigravity IDE 多项目配置
+
+Antigravity 目前不支持项目级 `.cursor/mcp.json` 配置，只能使用全局 `mcp_config.json`。
+
+**配置示例** (`~/.gemini/antigravity/mcp_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "supabase-project1": {
+      "command": "bun",
+      "args": ["x", "-y", "supabase-self-mcp@latest"],
+      "env": {
+        "MCP_PROJECT_PATH": "d:\\workspace\\project1"
+      }
+    },
+    "supabase-project2": {
+      "command": "bun",
+      "args": ["x", "-y", "supabase-self-mcp@latest"],
+      "env": {
+        "MCP_PROJECT_PATH": "d:\\workspace\\project2"
+      }
+    }
+  }
+}
+```
+
+**⚠️ 重要提示：**
+
+1. **所有 MCP 服务器会在每个项目中同时加载**
+2. **使用时必须明确指定服务器名称**，例如：
+   - 在 `project1` 中使用 `mcp_supabase-project1_*` 工具
+   - 在 `project2` 中使用 `mcp_supabase-project2_*` 工具
+3. **避免混用**：如果在错误的项目中调用了其他项目的 MCP 工具，会操作到错误的数据库
+
+**期待改进：**
+
+- 希望 Antigravity 未来支持工作区感知，自动根据当前项目过滤可用的 MCP 服务器
+- 或支持项目级 `.cursor/mcp.json` 配置文件

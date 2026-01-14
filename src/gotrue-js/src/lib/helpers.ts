@@ -52,19 +52,56 @@ export const looksLikeFetchResponse = (maybeResponse: unknown): maybeResponse is
 }
 
 // Storage helpers
-export const setItemAsync = (storage: SupportedStorage, key: string, data: any) => {
-  wx.setStorageSync(key, JSON.stringify(data))
+export const setItemAsync = async (
+  storage: SupportedStorage,
+  key: string,
+  data: any
+): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const jsonData = JSON.stringify(data)
+      console.log(`[setItemAsync] Saving key: ${key}, data length: ${jsonData.length}`)
+      wx.setStorageSync(key, jsonData)
+      console.log(`[setItemAsync] Successfully saved key: ${key}`)
+      resolve()
+    } catch (error) {
+      console.error(`[setItemAsync] Failed to save key: ${key}`, error)
+      reject(error)
+    }
+  })
 }
-export const getItemAsync = (storage: SupportedStorage, key: string) => {
-  const value = wx.getStorageSync(key) ? JSON.parse(wx.getStorageSync(key)) : ''
-  if (!value) {
-    return null
-  }
-  return value
+
+export const getItemAsync = async (storage: SupportedStorage, key: string): Promise<any | null> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const value = wx.getStorageSync(key)
+      if (!value) {
+        console.log(`[getItemAsync] No value found for key: ${key}`)
+        resolve(null)
+        return
+      }
+      const parsed = JSON.parse(value)
+      console.log(`[getItemAsync] Retrieved key: ${key}, has data: ${!!parsed}`)
+      resolve(parsed)
+    } catch (error) {
+      console.error(`[getItemAsync] Failed to retrieve key: ${key}`, error)
+      reject(error)
+    }
+  })
 }
 
 export const removeItemAsync = async (storage: SupportedStorage, key: string): Promise<void> => {
-  wx.removeStorageSync(key)
+  return new Promise((resolve, reject) => {
+    try {
+      console.log(`[removeItemAsync] Removing key: ${key}`)
+      wx.removeStorageSync(key)
+      console.log(`[removeItemAsync] Successfully removed key: ${key}`)
+      resolve()
+    } catch (error) {
+      console.error(`[removeItemAsync] Failed to remove key: ${key}`, error)
+      reject(error)
+    }
+  })
 }
 
 export function decodeBase64URL(value: string): string {
