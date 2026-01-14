@@ -22,7 +22,7 @@ export default class PostgrestClient<
     : string & keyof Database,
   Schema extends GenericSchema = Database[SchemaName] extends GenericSchema
     ? Database[SchemaName]
-    : any
+    : any,
 > {
   url: string
   headers: Record<string, string>
@@ -59,7 +59,7 @@ export default class PostgrestClient<
 
   from<
     TableName extends string & keyof Schema['Tables'],
-    Table extends Schema['Tables'][TableName]
+    Table extends Schema['Tables'][TableName],
   >(relation: TableName): PostgrestQueryBuilder<Schema, Table>
   from<ViewName extends string & keyof Schema['Views'], View extends Schema['Views'][ViewName]>(
     relation: ViewName
@@ -102,7 +102,7 @@ export default class PostgrestClient<
    */
   rpc<
     FunctionName extends string & keyof Schema['Functions'],
-    Function_ extends Schema['Functions'][FunctionName]
+    Function_ extends Schema['Functions'][FunctionName],
   >(
     fn: FunctionName,
     args: Function_['Args'] = {},

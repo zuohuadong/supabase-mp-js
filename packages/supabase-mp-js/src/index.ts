@@ -33,7 +33,7 @@ export const createClient = <
     : string & keyof Database,
   Schema extends GenericSchema = Database[SchemaName] extends GenericSchema
     ? Database[SchemaName]
-    : any
+    : any,
 >(
   supabaseUrl: string,
   supabaseKey: string,

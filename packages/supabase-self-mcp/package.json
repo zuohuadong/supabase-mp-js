@@ -1,0 +1,22 @@
+{
+    "name": "supabase-self-mcp",
+    "version": "0.1.0",
+    "description": "Supabase MCP Bridge for Self-Hosted Instance",
+    "main": "dist/index.mjs",
+    "bin": {
+        "supa-mcp": "./dist/index.mjs"
+    },
+    "scripts": {
+        "build": "bun build ./src/bridge/index.ts --outfile ./dist/index.mjs --target bun",
+        "start": "bun run ./src/bridge/index.ts",
+        "dev": "bun run --watch ./src/bridge/index.ts"
+    },
+    "devDependencies": {
+        "bun-types": "latest",
+        "@types/node": "latest"
+    },
+    "engines": {
+        "bun": ">=1.0.0"
+    },
+    "author": "Supabase"
+}

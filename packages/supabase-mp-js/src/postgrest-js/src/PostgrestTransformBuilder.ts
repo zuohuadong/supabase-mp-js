@@ -10,7 +10,7 @@ import {
 export default class PostgrestTransformBuilder<
   Schema extends GenericSchema,
   Row extends Record<string, unknown>,
-  Result
+  Result,
 > extends PostgrestBuilder<Result> {
   /**
    * Perform a SELECT on the query result.
@@ -220,9 +220,8 @@ export default class PostgrestTransformBuilder<
       .join('|')
     // An Accept header can carry multiple media types but postgrest-js always sends one
     const forMediatype = this.headers['Accept']
-    this.headers[
-      'Accept'
-    ] = `application/vnd.pgrst.plan+${format}; for="${forMediatype}"; options=${options};`
+    this.headers['Accept'] =
+      `application/vnd.pgrst.plan+${format}; for="${forMediatype}"; options=${options};`
     if (format === 'json') return this as PromiseLike<PostgrestResponse<Record<string, unknown>>>
     else return this as PromiseLike<PostgrestSingleResponse<string>>
   }

@@ -85,7 +85,10 @@ export default class RealtimePresence {
    * @param opts - The options,
    *        for example `{events: {state: 'state', diff: 'diff'}}`
    */
-  constructor(public channel: RealtimeChannel, opts?: PresenceOpts) {
+  constructor(
+    public channel: RealtimeChannel,
+    opts?: PresenceOpts
+  ) {
     const events = opts?.events || {
       state: 'presence_state',
       diff: 'presence_diff',

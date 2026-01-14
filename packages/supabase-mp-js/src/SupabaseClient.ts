@@ -47,7 +47,7 @@ export default class SupabaseClient<
     : string & keyof Database,
   Schema extends GenericSchema = Database[SchemaName] extends GenericSchema
     ? Database[SchemaName]
-    : any
+    : any,
 > {
   /**
    * Supabase Auth allows you to create and manage user sessions for access to data that is secured by access policies.
@@ -158,7 +158,7 @@ export default class SupabaseClient<
    */
   from<
     TableName extends string & keyof Schema['Tables'],
-    Table extends Schema['Tables'][TableName]
+    Table extends Schema['Tables'][TableName],
   >(relation: TableName): PostgrestQueryBuilder<Schema, Table>
   from<ViewName extends string & keyof Schema['Views'], View extends Schema['Views'][ViewName]>(
     relation: ViewName
@@ -179,7 +179,7 @@ export default class SupabaseClient<
    */
   rpc<
     FunctionName extends string & keyof Schema['Functions'],
-    Function_ extends Schema['Functions'][FunctionName]
+    Function_ extends Schema['Functions'][FunctionName],
   >(
     fn: FunctionName,
     args: Function_['Args'] = {},

@@ -5,7 +5,7 @@ import { Fetch, GenericSchema, GenericTable, GenericView } from './types'
 
 export default class PostgrestQueryBuilder<
   Schema extends GenericSchema,
-  Relation extends GenericTable | GenericView
+  Relation extends GenericTable | GenericView,
 > {
   url: URL
   headers: Record<string, string>

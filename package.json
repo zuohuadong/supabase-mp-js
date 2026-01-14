@@ -1,69 +1,18 @@
 {
-  "name": "supabase-self-mcp",
-  "version": "0.3.27",
-  "description": "Supabase Client for WeChat & MCP Bridge",
-  "keywords": [
-    "javascript",
-    "typescript",
-    "supabase",
-    "miniprogram",
-    "wechat"
+  "name": "supabase-wechat-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*"
   ],
-  "homepage": "https://github.com/supabase/supabase-js",
-  "bugs": "https://github.com/supabase/supabase-js/issues",
-  "license": "MIT",
-  "author": "Supabase",
-  "files": [
-    "dist"
-  ],
-  "main": "dist/main/index.js",
-  "module": "dist/module/index.js",
-  "miniprogram": "./dist/main",
-  "types": "dist/module/index.d.ts",
-  "bin": {
-    "supa-mcp": "./dist/index.mjs"
-  },
-  "sideEffects": false,
-  "repository": "supabase/supabase-js",
   "scripts": {
-    "clean": "rimraf dist docs",
-    "format": "prettier --write \"{src,test}/**/*.ts\"",
-    "build": "run-s clean format build:*",
-    "build:main": "tsc -p tsconfig.json",
-    "build:mcp": "bun build ./supabase-mcp/bridge/index.ts --outfile ./dist/index.mjs --target node",
-    "build:module": "tsc -p tsconfig.module.json",
-    "build:umd": "webpack",
-    "types-generate": "dts-gen -m '@supabase/supabase-js' -s",
-    "test": "jest --runInBand",
-    "test:coverage": "jest --runInBand --coverage",
-    "test:db": "cd infra/db && docker-compose down && docker-compose up -d && sleep 5",
-    "test:watch": "jest --watch --verbose false --silent false",
-    "test:clean": "cd infra/db && docker-compose down",
-    "docs": "typedoc --entryPoints src/index.ts --out docs/v2 --includes src/**/*.ts",
-    "docs:json": "typedoc --entryPoints src/index.ts --includes src/**/*.ts --json docs/v2/spec.json --excludeExternals"
+    "build": "bun run --filter '*' build",
+    "test": "bun run --filter '*' test",
+    "clean": "bun run --filter '*' clean",
+    "format": "prettier --write \"packages/**/*.{ts,js,json,md}\""
   },
-  "dependencies": {},
   "devDependencies": {
-    "@types/jest": "^29.5.12",
-    "@types/node": "^20.12.7",
-    "husky": "^9.0.11",
-    "jest": "^29.7.0",
-    "npm-run-all": "^4.1.5",
     "prettier": "^3.2.5",
-    "rimraf": "^5.0.5",
-    "ts-jest": "^29.1.2",
-    "ts-loader": "^9.5.1",
-    "ts-node": "^10.9.2",
-    "typedoc": "^0.25.13",
-    "typescript": "^5.4.5",
-    "webpack": "^5.91.0",
-    "webpack-cli": "^5.1.4"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "pretty-quick --staged"
-    }
-  },
-  "jsdelivr": "dist/umd/supabase.js",
-  "unpkg": "dist/umd/supabase.js"
+    "husky": "^9.0.11",
+    "rimraf": "^5.0.5"
+  }
 }

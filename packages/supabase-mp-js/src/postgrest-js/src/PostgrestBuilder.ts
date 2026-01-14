@@ -2,9 +2,9 @@
 
 import type { Fetch, PostgrestResponse } from './types'
 
-export default abstract class PostgrestBuilder<Result>
-  implements PromiseLike<PostgrestResponse<Result>>
-{
+export default abstract class PostgrestBuilder<Result> implements PromiseLike<
+  PostgrestResponse<Result>
+> {
   protected method: 'GET' | 'HEAD' | 'POST' | 'PATCH' | 'DELETE'
   protected url: URL
   protected headers: Record<string, string>
