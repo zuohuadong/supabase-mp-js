@@ -31,6 +31,7 @@ async function loadEnv(): Promise<void> {
       'SUPABASE_SERVICE_ROLE_KEY',
       'SERVICE_ROLE_KEY',
       'MCP_DISABLE_AUTH_HEADER',
+      'MCP_BASE_PATH',
     ]
 
     for (const line of content.split('\n')) {
@@ -71,11 +72,12 @@ function updateConfig(): void {
   REMOTE_HOST = process.env.MCP_REMOTE_HOST || 'root@localhost'
   REMOTE_PORT = parseInt(process.env.MCP_REMOTE_PORT || '8000')
   LOCAL_PORT = parseInt(process.env.MCP_LOCAL_PORT || '18080')
-  BASE_URL = `http://localhost:${LOCAL_PORT}/mcp`
+  BASE_URL = `http://localhost:${LOCAL_PORT}${process.env.MCP_BASE_PATH || '/mcp'}`
 
   console.error(`[Config] REMOTE_HOST=${REMOTE_HOST}`)
   console.error(`[Config] REMOTE_PORT=${REMOTE_PORT}`)
   console.error(`[Config] LOCAL_PORT=${LOCAL_PORT}`)
+  console.error(`[Config] BASE_URL=${BASE_URL}`)
 }
 
 // === 端口检查 ===
@@ -160,12 +162,7 @@ async function sendRequest(jsonBody: string): Promise<string> {
     Accept: 'application/json, text/event-stream',
   }
 
-  // 添加认证头
-  const apiKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SERVICE_ROLE_KEY
-  if (apiKey && process.env.MCP_DISABLE_AUTH_HEADER !== 'true') {
-    headers['apikey'] = apiKey
-    headers['Authorization'] = `Bearer ${apiKey}`
-  }
+  // MCP 端点通过 IP 限制保护，不需要额外的 API Key 认证
 
   const response = await fetch(BASE_URL, {
     method: 'POST',

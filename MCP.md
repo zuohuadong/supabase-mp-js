@@ -40,10 +40,32 @@ supa-mcp ./
 在你的项目根目录创建 `.env` 文件，配置 SSH 连接信息：
 
 ```env
+# SSH 连接配置
 MCP_REMOTE_HOST=root@your-server-ip  # SSH 登录地址
-MCP_REMOTE_PORT=8000                 # 远程 Supabase Studio/API 端口 (通常 Kong 端口)
-# MCP_LOCAL_PORT=18080               # (可选) 指定本地端口。不设置默认为 0 (自动动态分配)，推荐不设置以支持多开。
+MCP_REMOTE_PORT=8000                 # 远程端口 (见下方说明)
+MCP_LOCAL_PORT=18080                 # (可选) 本地端口，不设置则自动分配
+
+# MCP 端点配置 (v0.3.26+)
+MCP_BASE_PATH=/mcp                   # (可选) MCP 端点路径，默认 /mcp
 ```
+
+**端口配置说明：**
+
+1. **通过 Kong 访问** (默认，有 IP 限制可能导致 403)：
+
+   ```env
+   MCP_REMOTE_PORT=8000
+   MCP_BASE_PATH=/mcp
+   ```
+
+2. **直连 Studio** (推荐，绕过 Kong 限制)：
+
+   ```env
+   MCP_REMOTE_PORT=3003      # 或 8082，取决于你的 Studio 端口映射
+   MCP_BASE_PATH=/api/mcp
+   ```
+
+   查看 Studio 端口：`docker ps | grep studio`
 
 ### 在 Cursor 中使用 (推荐配置)
 
