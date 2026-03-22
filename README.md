@@ -264,6 +264,113 @@ serve(async (req) => {
 
 </details>
 
+<details>
+<summary>点击查看 wechat-login Bun 代码模版 (适用于 SupaCloud / Bun Edge Runtime)</summary>
+
+```typescript
+// functions/<projectRef>/wechat-login.ts
+// Bun Edge Runtime 格式：使用 export default 替代 serve()，使用 npm 包名替代 URL 导入
+import { createClient } from "@supabase/supabase-js"
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+// 基于 openid + JWT_SECRET 生成确定性密码
+async function createPassword(str: string, secret: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(str + secret)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 32)
+}
+
+export default async function handler(req: Request): Promise<Response> {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
+  try {
+    const { code } = await req.json()
+    if (!code) throw new Error('Missing code')
+
+    // 环境变量 (Deno.env.get 通过兼容层支持，也可使用 process.env)
+    const WECHAT_APP_ID = process.env.WECHAT_APP_ID
+    const WECHAT_APP_SECRET = process.env.WECHAT_APP_SECRET
+    const SUPABASE_URL = process.env.SUPABASE_URL!
+    const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
+    const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY!
+    const JWT_SECRET = process.env.JWT_SECRET!
+
+    // 1. 微信接口换取 OpenID
+    const wechatRes = await fetch(
+      `https://api.weixin.qq.com/sns/jscode2session?appid=${WECHAT_APP_ID}&secret=${WECHAT_APP_SECRET}&js_code=${code}&grant_type=authorization_code`
+    )
+    const wechatData: any = await wechatRes.json()
+    if (wechatData.errcode) throw new Error(`WeChat API Error: ${wechatData.errmsg}`)
+
+    const { openid, unionid } = wechatData
+
+    // 2. 初始化 Admin 客户端
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+
+    // 3. 派生确定性凭据
+    const email = `${openid.toLowerCase()}@wechat.com`
+    const password = await createPassword(openid, JWT_SECRET)
+
+    // 4. 创建用户 (幂等 — 已存在则返回 422)
+    const { error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { openid, unionid },
+      app_metadata: { provider: 'wechat', providers: ['wechat'] },
+    })
+
+    if (createError && !createError.message.includes('already been registered')) {
+      throw createError
+    }
+
+    // 5. 登录获取 Session
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: false },
+    })
+
+    const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (signInError) throw signInError
+
+    // 6. 返回标准 Session 结构
+    return new Response(
+      JSON.stringify({ data: { session: signInData.session, user: signInData.user } }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  } catch (error: any) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 400,
+    })
+  }
+}
+```
+
+**与 Deno 版本的主要区别：**
+
+| 项目 | Deno 版本 | Bun 版本 |
+|------|-----------|----------|
+| 入口 | `serve(handler)` | `export default handler` |
+| 导入 | `https://esm.sh/...` URL | `"@supabase/supabase-js"` npm 包名 |
+| 环境变量 | `Deno.env.get()` | `process.env` (也兼容 `Deno.env.get`) |
+| 认证方式 | 手动签发 JWT | `signInWithPassword` (由 GoTrue 签发，更安全) |
+
+</details>
+
 ### 5. 增强功能
 
 - **智能并发控制**: 内置请求队列，防止小程序 `wx.request` 并发数超限。
