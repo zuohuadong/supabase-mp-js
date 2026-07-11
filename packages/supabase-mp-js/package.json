@@ -1,7 +1,7 @@
 {
   "name": "supabase-mp-js",
-  "version": "0.3.3",
-  "description": "Supabase Client for WeChat Miniprogram",
+  "version": "0.3.4",
+  "description": "Official Supabase v2 client adapted for WeChat Mini Programs",
   "keywords": [
     "javascript",
     "typescript",
@@ -12,7 +12,7 @@
   "homepage": "https://github.com/zuohuadong/supabase-mp-js",
   "bugs": "https://github.com/zuohuadong/supabase-mp-js/issues",
   "license": "MIT",
-  "author": "Supabase",
+  "author": "zuohuadong",
   "files": [
     "dist"
   ],
@@ -20,40 +20,52 @@
   "module": "dist/module/index.js",
   "miniprogram": "./dist/main",
   "types": "dist/module/index.d.ts",
-  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/module/index.d.ts",
+      "webpack": "./dist/module/index.js",
+      "import": "./dist/module/index.mjs",
+      "require": "./dist/main/index.js",
+      "default": "./dist/main/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": [
+    "./dist/main/index.js",
+    "./dist/module/index.js",
+    "./dist/module/index.mjs",
+    "./dist/umd/supabase.js"
+  ],
   "repository": "zuohuadong/supabase-mp-js",
   "scripts": {
     "clean": "rimraf dist docs",
-    "format": "prettier --write \"{src,test}/**/*.ts\"",
-    "build": "run-s clean format build:main build:module build:umd",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "build": "npm run clean && npm run build:main && npm run build:module && npm run build:umd",
     "build:main": "tsc -p tsconfig.json",
     "build:module": "tsc -p tsconfig.module.json",
-    "build:umd": "webpack",
-    "types-generate": "dts-gen -m '@supabase/supabase-js' -s",
+    "build:umd": "webpack-cli --config webpack.config.js",
     "test": "jest --runInBand",
     "test:coverage": "jest --runInBand --coverage",
-    "test:db": "cd infra/db && docker-compose down && docker-compose up -d && sleep 5",
-    "test:watch": "jest --watch --verbose false --silent false",
-    "test:clean": "cd infra/db && docker-compose down",
-    "docs": "typedoc --entryPoints src/index.ts --out docs/v2 --includes src/**/*.ts",
-    "docs:json": "typedoc --entryPoints src/index.ts --includes src/**/*.ts --json docs/v2/spec.json --excludeExternals"
+    "test:watch": "jest --watch --verbose false --silent false"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@supabase/storage-js": "^2.110.2",
+    "@supabase/supabase-js": "^2.110.2"
+  },
   "devDependencies": {
-    "@types/jest": "^29.5.12",
-    "@types/node": "^20.12.7",
-    "husky": "^9.0.11",
-    "jest": "^29.7.0",
-    "npm-run-all": "^4.1.5",
-    "prettier": "^3.2.5",
-    "rimraf": "^5.0.5",
-    "ts-jest": "^29.1.2",
-    "ts-loader": "^9.5.1",
-    "ts-node": "^10.9.2",
-    "typedoc": "^0.25.13",
-    "typescript": "^5.4.5",
-    "webpack": "^5.91.0",
-    "webpack-cli": "^5.1.4"
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.20.1",
+    "jest": "^30.4.2",
+    "js-yaml": "^5.2.1",
+    "ts-jest": "^29.4.11",
+    "ts-loader": "^9.6.2",
+    "typescript": "^5.9.3",
+    "webpack": "^5.108.4",
+    "webpack-cli": "^7.2.1"
+  },
+  "engines": {
+    "node": ">=22.0.0"
   },
   "jsdelivr": "dist/umd/supabase.js",
   "unpkg": "dist/umd/supabase.js"

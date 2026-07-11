@@ -2,12 +2,13 @@
  * Supabase Storage Adapter for WeChat Mini Program
  * Uses wx.getStorageSync / wx.setStorageSync / wx.removeStorageSync
  */
-declare const wx: any
-
 export class SupabaseMPAdapter {
   getItem(key: string): string | null {
+    if (typeof wx === 'undefined' || typeof wx.getStorageSync !== 'function') return null
     try {
-      return wx.getStorageSync(key)
+      const value = wx.getStorageSync(key)
+      if (value == null || value === '') return null
+      return typeof value === 'string' ? value : JSON.stringify(value)
     } catch (e) {
       console.error('Error getting item from storage', e)
       return null
@@ -15,6 +16,7 @@ export class SupabaseMPAdapter {
   }
 
   setItem(key: string, value: string): void {
+    if (typeof wx === 'undefined' || typeof wx.setStorageSync !== 'function') return
     try {
       wx.setStorageSync(key, value)
     } catch (e) {
@@ -23,6 +25,7 @@ export class SupabaseMPAdapter {
   }
 
   removeItem(key: string): void {
+    if (typeof wx === 'undefined' || typeof wx.removeStorageSync !== 'function') return
     try {
       wx.removeStorageSync(key)
     } catch (e) {
