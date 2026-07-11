@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  supabase-mp-js:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run format:check --workspace supabase-mp-js
+
+      - name: Test
+        run: npm test --workspace supabase-mp-js
+
+      - name: Build
+        run: npm run build --workspace supabase-mp-js
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev
+
+      - name: Smoke test packed CJS and ESM entries
+        run: |
+          TARBALL="$(npm pack --workspace supabase-mp-js --pack-destination "$RUNNER_TEMP" --silent)"
+          mkdir -p "$RUNNER_TEMP/smoke"
+          npm install --prefix "$RUNNER_TEMP/smoke" --no-audit --no-fund "$RUNNER_TEMP/$TARBALL"
+          cd "$RUNNER_TEMP/smoke"
+          node -e "const pkg = require('supabase-mp-js'); if (typeof pkg.createClient !== 'function') process.exit(1)"
+          node --input-type=module -e "const pkg = await import('supabase-mp-js'); if (typeof pkg.createClient !== 'function') process.exit(1)"

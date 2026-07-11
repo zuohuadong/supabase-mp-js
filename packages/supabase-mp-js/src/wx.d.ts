@@ -4,9 +4,11 @@ declare namespace WechatMiniprogram {
     request(options: RequestOption): RequestTask
     uploadFile(options: UploadFileOption): UploadTask
     connectSocket(options: ConnectSocketOption): SocketTask
-    getStorageSync(key: string): any
-    setStorageSync(key: string, data: any): void
+    getStorageSync(key: string): unknown
+    setStorageSync(key: string, data: unknown): void
     removeStorageSync(key: string): void
+    onAppShow(callback: () => void): void
+    onAppHide(callback: () => void): void
     getFileSystemManager(): FileSystemManager
     arrayBufferToBase64(buffer: ArrayBuffer): string
   }
@@ -43,20 +45,21 @@ declare namespace WechatMiniprogram {
 
   interface RequestOption {
     url: string
-    data?: any
-    header?: any
+    data?: unknown
+    header?: Record<string, string>
     method?: 'OPTIONS' | 'GET' | 'HEAD' | 'POST' | 'PUT' | 'DELETE' | 'TRACE' | 'CONNECT'
     dataType?: string
     responseType?: string
+    timeout?: number
     success?: (res: RequestSuccessCallbackResult) => void
     fail?: (res: GeneralCallbackResult) => void
     complete?: (res: GeneralCallbackResult) => void
   }
 
   interface RequestSuccessCallbackResult {
-    data: any
+    data: unknown
     statusCode: number
-    header: any
+    header: Record<string, string | string[]>
     cookies?: string[]
     errMsg: string
   }
@@ -74,8 +77,8 @@ declare namespace WechatMiniprogram {
     url: string
     filePath: string
     name: string
-    header?: any
-    formData?: any
+    header?: Record<string, string>
+    formData?: Record<string, string>
     success?: (res: UploadFileSuccessCallbackResult) => void
     fail?: (res: GeneralCallbackResult) => void
   }
@@ -92,7 +95,7 @@ declare namespace WechatMiniprogram {
 
   interface ConnectSocketOption {
     url: string
-    header?: any
+    header?: Record<string, string>
     protocols?: string[]
     tcpNoDelay?: boolean
   }
@@ -100,8 +103,8 @@ declare namespace WechatMiniprogram {
   interface SocketTask {
     send(options: { data: string | ArrayBuffer }): void
     close(options?: { code?: number; reason?: string }): void
-    onOpen(callback: (res: any) => void): void
-    onClose(callback: (res: any) => void): void
+    onOpen(callback: (res: unknown) => void): void
+    onClose(callback: (res: { code?: number; reason?: string }) => void): void
     onError(callback: (res: { errMsg: string }) => void): void
     onMessage(callback: (res: { data: string | ArrayBuffer }) => void): void
     binaryType?: string
