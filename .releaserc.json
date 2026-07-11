@@ -38,7 +38,8 @@
     [
       "@semantic-release/npm",
       {
-        "pkgRoot": "packages/supabase-mp-js"
+        "pkgRoot": "packages/supabase-mp-js",
+        "provenance": true
       }
     ]
   ]
