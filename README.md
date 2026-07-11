@@ -270,20 +270,39 @@ serve(async (req) => {
 ```typescript
 // functions/<projectRef>/wechat-login.ts
 // Bun Edge Runtime 格式：使用 export default 替代 serve()，使用 npm 包名替代 URL 导入
-import { createClient } from "@supabase/supabase-js"
+import { createClient } from '@supabase/supabase-js'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// 基于 openid + JWT_SECRET 生成确定性密码
-async function createPassword(str: string, secret: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(str + secret)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 32)
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function requireEnv(name: string): string {
+  const value = process.env[name]
+  if (!value) throw new Error(`Server Config Error: Missing ${name}`)
+  return value
+}
+
+function parseWechatResponse(value: unknown): { openid: string; unionid?: string } {
+  if (!isRecord(value)) throw new Error('Invalid WeChat response')
+
+  if (typeof value.errcode === 'number' && value.errcode !== 0) {
+    const message = typeof value.errmsg === 'string' ? value.errmsg : 'Unknown WeChat error'
+    throw new Error(`WeChat API Error: ${message}`)
+  }
+
+  if (typeof value.openid !== 'string' || value.openid.length === 0) {
+    throw new Error('WeChat response is missing openid')
+  }
+
+  return {
+    openid: value.openid,
+    ...(typeof value.unionid === 'string' ? { unionid: value.unionid } : {}),
+  }
 }
 
 export default async function handler(req: Request): Promise<Response> {
@@ -292,67 +311,80 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   try {
-    const { code } = await req.json()
-    if (!code) throw new Error('Missing code')
+    const body: unknown = await req.json()
+    if (!isRecord(body) || typeof body.code !== 'string' || body.code.length === 0) {
+      throw new Error('Missing code')
+    }
 
-    // 环境变量 (Deno.env.get 通过兼容层支持，也可使用 process.env)
-    const WECHAT_APP_ID = process.env.WECHAT_APP_ID
-    const WECHAT_APP_SECRET = process.env.WECHAT_APP_SECRET
-    const SUPABASE_URL = process.env.SUPABASE_URL!
-    const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
-    const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY!
-    const JWT_SECRET = process.env.JWT_SECRET!
+    const WECHAT_MINIPROGRAM_APP_ID = requireEnv('WECHAT_MINIPROGRAM_APP_ID')
+    const WECHAT_MINIPROGRAM_APP_SECRET = requireEnv('WECHAT_MINIPROGRAM_APP_SECRET')
+    const SUPABASE_URL = requireEnv('SUPABASE_URL')
+    const SUPABASE_SERVICE_ROLE_KEY = requireEnv('SUPABASE_SERVICE_ROLE_KEY')
 
     // 1. 微信接口换取 OpenID
     const wechatRes = await fetch(
-      `https://api.weixin.qq.com/sns/jscode2session?appid=${WECHAT_APP_ID}&secret=${WECHAT_APP_SECRET}&js_code=${code}&grant_type=authorization_code`
+      `https://api.weixin.qq.com/sns/jscode2session?appid=${WECHAT_MINIPROGRAM_APP_ID}&secret=${WECHAT_MINIPROGRAM_APP_SECRET}&js_code=${body.code}&grant_type=authorization_code`
     )
-    const wechatData: any = await wechatRes.json()
-    if (wechatData.errcode) throw new Error(`WeChat API Error: ${wechatData.errmsg}`)
-
-    const { openid, unionid } = wechatData
+    const { openid, unionid } = parseWechatResponse(await wechatRes.json())
 
     // 2. 初始化 Admin 客户端
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-      auth: { autoRefreshToken: false, persistSession: false },
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      },
     })
 
-    // 3. 派生确定性凭据
-    const email = `${openid.toLowerCase()}@wechat.com`
-    const password = await createPassword(openid, JWT_SECRET)
+    // 3. 创建或复用用户
+    const email = `${openid}@wechat.com`
 
-    // 4. 创建用户 (幂等 — 已存在则返回 422)
     const { error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
-      password,
       email_confirm: true,
       user_metadata: { openid, unionid },
       app_metadata: { provider: 'wechat', providers: ['wechat'] },
     })
 
-    if (createError && !createError.message.includes('already been registered')) {
+    if (createError && createError.code !== 'user_already_exists') {
       throw createError
     }
 
-    // 5. 登录获取 Session
-    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false },
-    })
-
-    const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
+    // 4. 生成一次性 magic link，并用 token_hash 换取可刷新的 Session
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'magiclink',
       email,
-      password,
     })
+    if (linkError) throw linkError
 
-    if (signInError) throw signInError
+    const tokenHash = linkData?.properties?.hashed_token
+    if (typeof tokenHash !== 'string' || tokenHash.length === 0) {
+      throw new Error('Magic link response is missing token_hash')
+    }
 
-    // 6. 返回标准 Session 结构
-    return new Response(
-      JSON.stringify({ data: { session: signInData.session, user: signInData.user } }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
-  } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    const { data: sessionData, error: verifyError } = await supabaseAdmin.auth.verifyOtp({
+      type: 'magiclink',
+      token_hash: tokenHash,
+    })
+    if (verifyError) throw verifyError
+    if (!sessionData.session || !sessionData.user) throw new Error('Unable to create Session')
+
+    const { data: updatedUserData, error: updateError } =
+      await supabaseAdmin.auth.admin.updateUserById(sessionData.user.id, {
+        user_metadata: { openid, unionid },
+        app_metadata: { provider: 'wechat', providers: ['wechat'] },
+      })
+    if (updateError) throw updateError
+
+    const user = updatedUserData.user ?? sessionData.user
+    const session = { ...sessionData.session, user }
+
+    return new Response(JSON.stringify({ data: { session, user } }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    return new Response(JSON.stringify({ error: message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,
     })
@@ -367,7 +399,7 @@ export default async function handler(req: Request): Promise<Response> {
 | 入口 | `serve(handler)` | `export default handler` |
 | 导入 | `https://esm.sh/...` URL | `"@supabase/supabase-js"` npm 包名 |
 | 环境变量 | `Deno.env.get()` | `process.env` (也兼容 `Deno.env.get`) |
-| 认证方式 | 手动签发 JWT | `signInWithPassword` (由 GoTrue 签发，更安全) |
+| 认证方式 | 手动签发 JWT | Admin magic link + `verifyOtp`（GoTrue 正式签发可刷新 Session） |
 
 </details>
 
