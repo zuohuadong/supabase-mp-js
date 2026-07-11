@@ -245,4 +245,61 @@ describe('createClient', () => {
     expect(lifecycle.show).toHaveLength(0)
     expect(lifecycle.hide).toHaveLength(0)
   })
+
+  it('builds a native-equivalent PostgREST URL through wx.request with fallbacks', async () => {
+    const nativePlatform = {
+      URL: globalThis.URL,
+      URLSearchParams: globalThis.URLSearchParams,
+      Headers: globalThis.Headers,
+      AbortController: globalThis.AbortController,
+      AbortSignal: globalThis.AbortSignal,
+    }
+    const request = jest.fn((options: any) => {
+      queueMicrotask(() => {
+        options.success({
+          statusCode: 200,
+          data: '[]',
+          header: { 'Content-Type': 'application/json' },
+          errMsg: 'request:ok',
+        })
+        options.complete({ errMsg: 'request:ok' })
+      })
+      return { abort: jest.fn() }
+    })
+
+    try {
+      Object.assign(globalThis, {
+        URL: undefined,
+        URLSearchParams: undefined,
+        Headers: undefined,
+        AbortController: undefined,
+        AbortSignal: undefined,
+      })
+      const storage = new Map<string, unknown>()
+      ;(globalThis as any).wx = {
+        request,
+        getStorageSync: (key: string) => storage.get(key),
+        setStorageSync: (key: string, value: unknown) => storage.set(key, value),
+        removeStorageSync: (key: string) => storage.delete(key),
+      }
+
+      const client = createClient('https://project.supabase.co', 'anon-key', {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
+      await client
+        .from('lures')
+        .select('id, name')
+        .eq('name', '铁板 lure')
+        .order('created_at', { ascending: false })
+
+      const expected = new nativePlatform.URL('https://project.supabase.co/rest/v1/lures')
+      expected.searchParams.set('select', 'id,name')
+      expected.searchParams.append('name', 'eq.铁板 lure')
+      expected.searchParams.set('order', 'created_at.desc')
+      expect(request).toHaveBeenCalledTimes(1)
+      expect(request.mock.calls[0][0].url).toBe(expected.href)
+    } finally {
+      Object.assign(globalThis, nativePlatform)
+    }
+  })
 })

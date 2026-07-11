@@ -1,4 +1,4 @@
-import { Headers as HeadersPolyfill } from 'headers-polyfill'
+import { ensureSupabasePlatformGlobals } from './platform'
 
 const MAX_CONCURRENT_REQUESTS = 10
 const DEFAULT_TIMEOUT = 60_000
@@ -50,7 +50,7 @@ function normalizeHeaders(headers?: HeadersInit): Record<string, string> {
   const normalized: Record<string, string> = {}
   if (!headers) return normalized
 
-  const source = new HeadersPolyfill(headers)
+  const source = new Headers(headers)
   source.forEach((value, key) => {
     normalized[key] = value
   })
@@ -89,7 +89,7 @@ function createResponse(
   url: string
 ): Response {
   const status = Number(wxResponse.statusCode || 0)
-  const headers = new HeadersPolyfill()
+  const headers = new Headers()
   Object.entries(wxResponse.header || {}).forEach(([key, value]) => {
     if (Array.isArray(value)) value.forEach((item) => headers.append(key, String(item)))
     else if (value != null) headers.set(key, String(value))
@@ -264,6 +264,7 @@ function processQueue(): void {
 
 /** Fetch-compatible adapter backed by wx.request. */
 export function wxFetch(input: RequestInfo | URL, init: WxRequestInit = {}): Promise<Response> {
+  ensureSupabasePlatformGlobals()
   if (typeof wx === 'undefined' || typeof wx.request !== 'function') {
     return Promise.reject(new Error('wx.request is unavailable'))
   }

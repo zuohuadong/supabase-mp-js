@@ -38,6 +38,11 @@ const supabase = createClient('https://your-project.supabase.co', 'your-anon-or-
 在微信运行时，`createClient` 会自动注入网络、Session、Realtime 和文件上传适配器。
 调用者显式传入的 `global.fetch`、`auth.storage` 或 `realtime.transport` 优先级更高。
 
+包内仅在运行时缺失时安装紧凑的 `URL`、`URLSearchParams`、`Headers` 和 Abort
+兼容层，已有原生实现不会被覆盖。兼容层覆盖 Supabase 使用的 `http(s)` / `ws(s)`
+层级 URL；自定义 Supabase/SupaCloud 端点的主机名应使用 ASCII 或 Punycode，路径、查询和
+片段支持 Unicode。
+
 若使用官方 `options.accessToken` 接入第三方认证，Supabase Auth namespace 按官方契约不可用，
 因此不会安装 `auth.signInWithWechat` 或 Auth 生命周期钩子；Storage 上传会直接复用该 token provider。
 

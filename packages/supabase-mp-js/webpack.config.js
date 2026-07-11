@@ -19,9 +19,6 @@ const base = {
   },
   resolve: {
     extensions: ['.ts', '.js', '.json'],
-    alias: {
-      'abort-controller$': require.resolve('abort-controller/dist/abort-controller'),
-    },
   },
   performance: {
     hints: false,

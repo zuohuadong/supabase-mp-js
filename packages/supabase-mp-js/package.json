@@ -30,7 +30,12 @@
     },
     "./package.json": "./package.json"
   },
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/main/index.js",
+    "./dist/module/index.js",
+    "./dist/module/index.mjs",
+    "./dist/umd/supabase.js"
+  ],
   "repository": "zuohuadong/supabase-mp-js",
   "scripts": {
     "clean": "rimraf dist docs",
@@ -46,10 +51,7 @@
   },
   "dependencies": {
     "@supabase/storage-js": "^2.110.2",
-    "@supabase/supabase-js": "^2.110.2",
-    "abort-controller": "^3.0.0",
-    "headers-polyfill": "^5.0.1",
-    "whatwg-url-without-unicode": "8.0.0-3"
+    "@supabase/supabase-js": "^2.110.2"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
