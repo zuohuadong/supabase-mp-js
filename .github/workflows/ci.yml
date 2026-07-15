@@ -34,6 +34,9 @@ jobs:
       - name: Build
         run: npm run build --workspace supabase-mp-js
 
+      - name: Test mini-program compatibility bundle
+        run: npm run test:miniprogram-bundle --workspace supabase-mp-js
+
       - name: Audit production dependencies
         run: npm audit --omit=dev
 

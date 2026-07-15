@@ -39,9 +39,11 @@ const supabase = createClient('https://your-project.supabase.co', 'your-anon-or-
 调用者显式传入的 `global.fetch`、`auth.storage` 或 `realtime.transport` 优先级更高。
 
 包内仅在运行时缺失时安装紧凑的 `URL`、`URLSearchParams`、`Headers` 和 Abort
-兼容层，已有原生实现不会被覆盖。兼容层覆盖 Supabase 使用的 `http(s)` / `ws(s)`
-层级 URL；自定义 Supabase/SupaCloud 端点的主机名应使用 ASCII 或 Punycode，路径、查询和
-片段支持 Unicode。
+兼容层，已有原生实现不会被覆盖。小程序构建入口还会将官方 Supabase SDK 内部的
+`URL` 与 `URLSearchParams` 静态绑定到包内兼容实现，因此即使微信提供了不可改写、且会拒绝
+部分自定义域名的残缺全局实现，也不会影响传入的真实 Supabase URL。兼容层覆盖 Supabase
+使用的 `http(s)` / `ws(s)` 层级 URL；自定义 Supabase/SupaCloud 端点的主机名应使用 ASCII
+或 Punycode，路径、查询和片段支持 Unicode。
 
 若使用官方 `options.accessToken` 接入第三方认证，Supabase Auth namespace 按官方契约不可用，
 因此不会安装 `auth.signInWithWechat` 或 Auth 生命周期钩子；Storage 上传会直接复用该 token provider。
