@@ -704,17 +704,94 @@ class MiniAbortController {
 export function ensureSupabasePlatformGlobals(): void {
   const runtime = globalThis as RuntimeGlobal
 
-  if (typeof runtime.URLSearchParams !== 'function') {
-    runtime.URLSearchParams = MiniURLSearchParams as unknown as typeof URLSearchParams
+  if (canReplaceRuntimeGlobal(runtime, 'URLSearchParams') && !hasUsableURLSearchParams(runtime)) {
+    replaceRuntimeGlobal(
+      runtime,
+      'URLSearchParams',
+      MiniURLSearchParams as unknown as typeof URLSearchParams
+    )
   }
-  if (typeof runtime.URL !== 'function') runtime.URL = MiniURL as unknown as typeof URL
-  if (typeof runtime.Headers !== 'function') {
-    runtime.Headers = MiniHeaders as unknown as typeof Headers
+  if (canReplaceRuntimeGlobal(runtime, 'URL') && !hasUsableURL(runtime)) {
+    replaceRuntimeGlobal(runtime, 'URL', MiniURL as unknown as typeof URL)
   }
-  if (typeof runtime.AbortSignal !== 'function') {
-    runtime.AbortSignal = MiniAbortSignal as unknown as typeof AbortSignal
+  if (canReplaceRuntimeGlobal(runtime, 'Headers') && typeof runtime.Headers !== 'function') {
+    replaceRuntimeGlobal(runtime, 'Headers', MiniHeaders as unknown as typeof Headers)
   }
-  if (typeof runtime.AbortController !== 'function') {
-    runtime.AbortController = MiniAbortController as unknown as typeof AbortController
+  if (
+    canReplaceRuntimeGlobal(runtime, 'AbortSignal') &&
+    typeof runtime.AbortSignal !== 'function'
+  ) {
+    replaceRuntimeGlobal(runtime, 'AbortSignal', MiniAbortSignal as unknown as typeof AbortSignal)
   }
+  if (
+    canReplaceRuntimeGlobal(runtime, 'AbortController') &&
+    typeof runtime.AbortController !== 'function'
+  ) {
+    replaceRuntimeGlobal(
+      runtime,
+      'AbortController',
+      MiniAbortController as unknown as typeof AbortController
+    )
+  }
+}
+
+function canReplaceRuntimeGlobal<Key extends keyof RuntimeGlobal>(
+  runtime: RuntimeGlobal,
+  key: Key
+): boolean {
+  const descriptor = Object.getOwnPropertyDescriptor(runtime, key)
+  return (
+    descriptor === undefined || descriptor.writable === true || typeof descriptor.set === 'function'
+  )
+}
+
+function replaceRuntimeGlobal<Key extends keyof RuntimeGlobal>(
+  runtime: RuntimeGlobal,
+  key: Key,
+  value: RuntimeGlobal[Key]
+): void {
+  try {
+    runtime[key] = value
+  } catch {
+    // Some mini-program runtimes expose read-only partial web globals.
+  }
+}
+
+function hasUsableURL(runtime: RuntimeGlobal): boolean {
+  if (typeof runtime.URL !== 'function') return false
+  try {
+    // WeChat's partial URL implementation may accept official Supabase hosts
+    // while rejecting custom Supabase domains. Probe a neutral custom host.
+    const parsed = new runtime.URL('https://custom.example.com/')
+    return typeof parsed.href === 'string' && parsed.href.length > 0
+  } catch {
+    return false
+  }
+}
+
+function hasUsableURLSearchParams(runtime: RuntimeGlobal): boolean {
+  if (typeof runtime.URLSearchParams !== 'function') return false
+  try {
+    const params = new runtime.URLSearchParams('probe=value')
+    return params.get('probe') === 'value' && typeof params.set === 'function'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Constructor injected into the mini-program bundle for official Supabase modules.
+ * It never relies on replacing a read-only runtime URL global.
+ */
+export function SupabaseURL(input: string | URL, base?: string | URL): URL {
+  return new MiniURL(String(input), base === undefined ? undefined : String(base)) as unknown as URL
+}
+
+/**
+ * Constructor injected into the mini-program bundle for official Supabase modules.
+ */
+export function SupabaseURLSearchParams(
+  init?: ConstructorParameters<typeof URLSearchParams>[0]
+): URLSearchParams {
+  return new MiniURLSearchParams(init as ParameterSource) as unknown as URLSearchParams
 }

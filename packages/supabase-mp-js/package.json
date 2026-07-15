@@ -17,13 +17,13 @@
     "dist"
   ],
   "main": "dist/main/index.js",
-  "module": "dist/module/index.js",
-  "miniprogram": "./dist/main",
+  "module": "dist/module/index.mjs",
+  "miniprogram": "./dist/miniprogram",
   "types": "dist/module/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/module/index.d.ts",
-      "webpack": "./dist/module/index.js",
+      "webpack": "./dist/miniprogram/index.js",
       "import": "./dist/module/index.mjs",
       "require": "./dist/main/index.js",
       "default": "./dist/main/index.js"
@@ -46,6 +46,7 @@
     "build:module": "tsc -p tsconfig.module.json",
     "build:umd": "webpack-cli --config webpack.config.js",
     "test": "jest --runInBand",
+    "test:miniprogram-bundle": "node scripts/test-miniprogram-bundle.cjs",
     "test:coverage": "jest --runInBand --coverage",
     "test:watch": "jest --watch --verbose false --silent false"
   },
