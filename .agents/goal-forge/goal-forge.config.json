@@ -1,0 +1,73 @@
+{
+  "agents": [
+    {
+      "id": "designer",
+      "name": "Designer",
+      "responsibility": "Propose the artifact structure, field semantics, and revisions.",
+      "mustChallenge": [
+        "Can the artifact be implemented from this wording?",
+        "Is each field necessary?",
+        "Does the wording preserve the user's goal?"
+      ]
+    },
+    {
+      "id": "critic",
+      "name": "Critic",
+      "responsibility": "Attack ambiguity, missing boundaries, weak names, hidden assumptions, and acceptance gaps.",
+      "mustChallenge": [
+        "What can be misunderstood?",
+        "What breaks under edge cases?",
+        "Which names imply the wrong behavior?"
+      ]
+    },
+    {
+      "id": "verifier",
+      "name": "Verifier",
+      "responsibility": "Separate evidence from opinion and compare the proposal to known systems or references.",
+      "mustChallenge": [
+        "What claim needs a source?",
+        "What implementation pattern already exists?",
+        "What risk is unsupported by evidence?"
+      ]
+    },
+    {
+      "id": "editor",
+      "name": "Editor",
+      "responsibility": "Compress the final artifact while preserving accepted decisions and unresolved risks.",
+      "mustChallenge": [
+        "Can a sentence be removed without losing contract meaning?",
+        "Are terms used consistently?",
+        "Does the final text match the decision ledger?"
+      ]
+    }
+  ],
+  "artifactSections": [
+    "Goal",
+    "Non-goals",
+    "User Scenario",
+    "Core Concepts",
+    "Data Model",
+    "Field Naming Rationale",
+    "State Transitions",
+    "Failure Modes",
+    "Acceptance Criteria",
+    "Open Questions"
+  ],
+  "stopConditions": [
+    "required-sections",
+    "field-naming-rationale",
+    "open-objections",
+    "testable-acceptance-criteria",
+    "editor-compression",
+    "quality-metrics"
+  ],
+  "constrainedSections": {
+    "fieldNamingRationale": "Field Naming Rationale",
+    "acceptanceCriteria": "Acceptance Criteria"
+  },
+  "qualityThresholds": {
+    "minWordCount": 80,
+    "minSectionCoverage": 1,
+    "ambiguityMarkers": ["maybe", "probably", "etc.", "somehow", "unclear", "unknown"]
+  }
+}

@@ -107,3 +107,16 @@ dist
 docs/v2
 .cursor/
 .antigravity/
+progress.md
+tasks.md
+servers.local.md
+.mailbox/
+.agents/state/
+.agents/automations/
+.agents/docs/
+.agents/goal-forge/runs/
+AGENTS.md
+CODEBUDDY.md
+CLAUDE.md
+.zed/CONVENTIONS.md
+HERMES.md
