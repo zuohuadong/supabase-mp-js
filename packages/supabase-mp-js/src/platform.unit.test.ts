@@ -51,6 +51,34 @@ describe('Supabase web-platform fallbacks', () => {
     expect(globalThis.AbortSignal).toBe(NativeAbortSignal)
   })
 
+  it('replaces incomplete runtime URL implementations', () => {
+    const runtime = globalThis as unknown as RuntimeRecord
+    const BrokenURL = class {
+      constructor() {
+        throw new TypeError('URL is not supported by this runtime')
+      }
+    }
+    runtime.URL = BrokenURL
+    ensureSupabasePlatformGlobals()
+
+    expect(globalThis.URL).not.toBe(BrokenURL)
+    expect(new URL('https://custom.example.com/').hostname).toBe('custom.example.com')
+  })
+
+  it('replaces incomplete runtime URLSearchParams implementations', () => {
+    const runtime = globalThis as unknown as RuntimeRecord
+    const BrokenURLSearchParams = class {
+      get(): never {
+        throw new TypeError('URLSearchParams is not supported by this runtime')
+      }
+    }
+    runtime.URLSearchParams = BrokenURLSearchParams
+    ensureSupabasePlatformGlobals()
+
+    expect(globalThis.URLSearchParams).not.toBe(BrokenURLSearchParams)
+    expect(new URLSearchParams('probe=value').get('probe')).toBe('value')
+  })
+
   it('matches native URL resolution for Supabase service endpoints', () => {
     installFallbacks()
     const base = 'https://project.supabase.co/platform/'

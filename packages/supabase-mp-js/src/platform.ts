@@ -704,10 +704,10 @@ class MiniAbortController {
 export function ensureSupabasePlatformGlobals(): void {
   const runtime = globalThis as RuntimeGlobal
 
-  if (typeof runtime.URLSearchParams !== 'function') {
+  if (!hasUsableURLSearchParams(runtime)) {
     runtime.URLSearchParams = MiniURLSearchParams as unknown as typeof URLSearchParams
   }
-  if (typeof runtime.URL !== 'function') runtime.URL = MiniURL as unknown as typeof URL
+  if (!hasUsableURL(runtime)) runtime.URL = MiniURL as unknown as typeof URL
   if (typeof runtime.Headers !== 'function') {
     runtime.Headers = MiniHeaders as unknown as typeof Headers
   }
@@ -716,5 +716,27 @@ export function ensureSupabasePlatformGlobals(): void {
   }
   if (typeof runtime.AbortController !== 'function') {
     runtime.AbortController = MiniAbortController as unknown as typeof AbortController
+  }
+}
+
+function hasUsableURL(runtime: RuntimeGlobal): boolean {
+  if (typeof runtime.URL !== 'function') return false
+  try {
+    // WeChat's partial URL implementation may accept official Supabase hosts
+    // while rejecting custom Supabase domains. Probe a neutral custom host.
+    const parsed = new runtime.URL('https://custom.example.com/')
+    return typeof parsed.href === 'string' && parsed.href.length > 0
+  } catch {
+    return false
+  }
+}
+
+function hasUsableURLSearchParams(runtime: RuntimeGlobal): boolean {
+  if (typeof runtime.URLSearchParams !== 'function') return false
+  try {
+    const params = new runtime.URLSearchParams('probe=value')
+    return params.get('probe') === 'value' && typeof params.set === 'function'
+  } catch {
+    return false
   }
 }
