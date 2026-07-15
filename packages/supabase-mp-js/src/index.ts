@@ -136,7 +136,7 @@ export function createClient<
   supabaseKey: string,
   options: SupabaseClientOptions<SchemaName> = {}
 ): SupabaseClient<Database, SchemaNameOrClientOptions, SchemaName> {
-  ensureSupabasePlatformGlobals()
+  ensureSupabasePlatformGlobals(supabaseUrl)
   const wechat = isWechatRuntime()
   const customFetch = options.global?.fetch || (wechat ? wxFetch : undefined)
   const configuredTransport = options.realtime?.transport
