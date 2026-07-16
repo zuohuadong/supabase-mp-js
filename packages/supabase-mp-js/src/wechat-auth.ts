@@ -1,5 +1,6 @@
 import {
   AuthError,
+  FunctionsHttpError,
   type AuthResponse,
   type FunctionInvokeOptions,
   type SupabaseClient,
@@ -23,6 +24,48 @@ function authFailure(message: string, code: string): AuthResponse {
     data: { user: null, session: null },
     error: new AuthError(message, 400, code),
   }
+}
+
+function extractErrorBodyMessage(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const message = value.trim()
+    if (!message) return null
+
+    try {
+      return extractErrorBodyMessage(JSON.parse(message)) ?? message
+    } catch {
+      return message
+    }
+  }
+
+  if (!value || typeof value !== 'object') return null
+  const body = value as Record<string, unknown>
+  for (const key of ['message', 'error', 'error_description']) {
+    const message = extractErrorBodyMessage(body[key])
+    if (message) return message
+  }
+  return null
+}
+
+async function functionErrorMessage(error: unknown): Promise<string> {
+  const fallback = error instanceof Error ? error.message : 'Edge Function request failed'
+
+  if (!(error instanceof FunctionsHttpError)) return fallback
+
+  try {
+    const context = error.context as Partial<Response> | undefined
+    const response = typeof context?.clone === 'function' ? context.clone() : context
+    if (typeof response?.text === 'function') {
+      return extractErrorBodyMessage(await response.text()) ?? fallback
+    }
+    if (typeof response?.json === 'function') {
+      return extractErrorBodyMessage(await response.json()) ?? fallback
+    }
+  } catch {
+    // Keep the SDK's original message when the response body is unavailable or malformed.
+  }
+
+  return fallback
 }
 
 function extractSession(value: unknown): { access_token: string; refresh_token: string } | null {
@@ -55,7 +98,7 @@ export function installWechatAuth(client: WechatAuthClient): void {
       }
     )
     if (invokeError) {
-      return authFailure(invokeError.message, 'wechat_function_error')
+      return authFailure(await functionErrorMessage(invokeError), 'wechat_function_error')
     }
 
     const session = extractSession(functionResponse)
