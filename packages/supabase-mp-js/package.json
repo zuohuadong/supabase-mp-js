@@ -9,8 +9,8 @@
     "miniprogram",
     "wechat"
   ],
-  "homepage": "https://github.com/zuohuadong/supabase-mp-js",
-  "bugs": "https://github.com/zuohuadong/supabase-mp-js/issues",
+  "homepage": "https://github.com/vibeunion/supabase-mp-js",
+  "bugs": "https://github.com/vibeunion/supabase-mp-js/issues",
   "license": "MIT",
   "author": "zuohuadong",
   "files": [
@@ -36,7 +36,7 @@
     "./dist/module/index.mjs",
     "./dist/umd/supabase.js"
   ],
-  "repository": "zuohuadong/supabase-mp-js",
+  "repository": "vibeunion/supabase-mp-js",
   "scripts": {
     "clean": "rimraf dist docs",
     "format": "prettier --write \"src/**/*.ts\"",
