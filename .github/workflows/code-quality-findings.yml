@@ -1,0 +1,57 @@
+name: Export Code Quality Findings
+
+on:
+  push:
+    branches:
+      - codex/fix-code-quality-20260818
+    paths:
+      - .github/workflows/code-quality-findings.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  code-quality: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch open code quality findings
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(mktemp)"
+          status="$(curl --silent --show-error --location \
+            --output "$response" \
+            --write-out '%{http_code}' \
+            --header 'Accept: application/vnd.github+json' \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header 'X-GitHub-Api-Version: 2026-03-10' \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/code-quality/findings?state=open&per_page=100")"
+
+          echo "HTTP_STATUS=${status}"
+          python3 - "$response" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          path = pathlib.Path(sys.argv[1])
+          text = path.read_text(encoding="utf-8")
+          try:
+              findings = json.loads(text)
+          except json.JSONDecodeError:
+              print(text)
+              raise
+
+          if not isinstance(findings, list):
+              print(json.dumps(findings, ensure_ascii=False, indent=2))
+              raise SystemExit("Unexpected API response")
+
+          print(f"OPEN_FINDINGS_COUNT={len(findings)}")
+          for finding in findings:
+              print("FINDING=" + json.dumps(finding, ensure_ascii=False, separators=(",", ":")))
+          PY
+
+          test "$status" = '200'
