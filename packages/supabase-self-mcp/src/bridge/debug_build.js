@@ -5,7 +5,7 @@ var LOCAL_PORT = 18080
 var BASE_URL = `http://localhost:${LOCAL_PORT}/mcp`
 async function checkPort(port) {
   try {
-    const socket = await Bun.connect({
+    await Bun.connect({
       hostname: '127.0.0.1',
       port,
       socket: {
