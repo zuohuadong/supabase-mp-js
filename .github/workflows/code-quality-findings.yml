@@ -1,9 +1,9 @@
 name: Export Code Quality Findings
 
 on:
-  push:
+  pull_request:
     branches:
-      - codex/fix-code-quality-20260818
+      - main
     paths:
       - .github/workflows/code-quality-findings.yml
   workflow_dispatch:
