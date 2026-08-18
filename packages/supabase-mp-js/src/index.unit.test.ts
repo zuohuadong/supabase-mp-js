@@ -125,12 +125,11 @@ describe('createClient', () => {
     const { uploadFile } = installWxRuntime()
     const accessToken = jest.fn().mockResolvedValue('third-party-token')
     const client = createClient('https://project.example.test', 'anon-key', { accessToken })
+    const omitsWechatAuthExtension: 'signInWithWechat' extends keyof typeof client.auth
+      ? false
+      : true = true
 
-    if (false) {
-      // @ts-expect-error Third-party accessToken clients do not install the WeChat Auth extension.
-      client.auth.signInWithWechat
-    }
-
+    expect(omitsWechatAuthExtension).toBe(true)
     await client.storage.from('media').upload('avatar.png', 'wxfile://tmp/avatar.png')
 
     expect(accessToken).toHaveBeenCalled()
