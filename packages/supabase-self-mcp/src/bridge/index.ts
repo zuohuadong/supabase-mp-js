@@ -84,7 +84,7 @@ function updateConfig(): void {
 async function checkPort(port: number): Promise<boolean> {
   try {
     // @ts-ignore Bun API
-    const socket = await Bun.connect({
+    await Bun.connect({
       hostname: '127.0.0.1',
       port,
       socket: {
